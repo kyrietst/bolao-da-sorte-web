@@ -5,6 +5,7 @@ import MainLayout from '@/layout/MainLayout';
 import StatCard from '@/components/dashboard/StatCard';
 import LotteryResultCard from '@/components/dashboard/LotteryResult';
 import CreatePoolForm from '@/components/pools/CreatePoolForm';
+import { Button } from '@/components/ui/button';
 import { LotteryResult, LotteryType, Pool, SupabasePool } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -91,7 +92,7 @@ export default function Dashboard() {
       if (participantError) throw participantError;
 
       // Combinar os bolões
-      let allPoolsList = adminPools || [];
+      let allPoolsList: SupabasePool[] = adminPools || [];
       let participantPoolsData: SupabasePool[] = [];
       
       if (participantPools && participantPools.length > 0) {
@@ -104,7 +105,7 @@ export default function Dashboard() {
           .not('admin_id', 'eq', user.id); // Exclui bolões que ele é admin (para evitar duplicações)
         
         if (!error && data) {
-          participantPoolsData = data;
+          participantPoolsData = data as SupabasePool[];
           allPoolsList = [...allPoolsList, ...participantPoolsData];
         }
       }

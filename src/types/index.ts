@@ -78,7 +78,7 @@ export type Profile = {
 export type SupabasePool = {
   id: string;
   name: string;
-  lottery_type: LotteryType;
+  lottery_type: LotteryType; // Corrigido para usar o tipo LotteryType em vez de string
   draw_date: string;
   num_tickets: number;
   max_participants: number;

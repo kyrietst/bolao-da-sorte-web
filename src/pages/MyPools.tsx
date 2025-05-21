@@ -68,11 +68,11 @@ export default function MyPools() {
           .not('admin_id', 'eq', user.id); // Exclui bolões que ele é admin (para evitar duplicações)
         
         if (error) throw error;
-        participantPoolsData = data || [];
+        participantPoolsData = data as SupabasePool[] || [];
       }
 
       // Combinar os bolões e converter para o formato Pool
-      const allPools = [...(adminPools || []), ...participantPoolsData];
+      const allPools = [...(adminPools as SupabasePool[] || []), ...participantPoolsData];
       const formattedPools = allPools.map(convertSupabasePoolToPool);
       
       setPools(formattedPools);
