@@ -53,6 +53,11 @@ export type LotteryResult = {
   numbers: number[];
   accumulated: boolean;
   winners?: number;
+  prizes?: Array<{
+    hits: string;
+    winners: number;
+    prize: string;
+  }>;
 };
 
 export type Prize = {

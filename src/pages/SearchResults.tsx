@@ -1,13 +1,17 @@
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import MainLayout from '@/layout/MainLayout';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import LotteryResultCard from '@/components/dashboard/LotteryResult';
 import { LotteryResult, LotteryType } from '@/types';
+import { fetchLotteryResult, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
+import { toast } from '@/components/ui/sonner';
+import { Pagination, PaginationContent, PaginationItem, PaginationLink } from '@/components/ui/pagination';
 
-// Mock data - will be replaced with API data
+// Mock data - será usado apenas quando a API não estiver disponível ou ocorrer um erro
 const mockResults: LotteryResult[] = [
   {
     id: '1',
@@ -64,21 +68,70 @@ export default function SearchResults() {
   const [selectedLottery, setSelectedLottery] = useState<string>('');
   const [drawNumber, setDrawNumber] = useState<string>('');
   const [results, setResults] = useState<LotteryResult[]>(mockResults);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
   
-  const handleSearch = () => {
-    // In a real implementation, this would call the API with the selected lottery and draw number
-    // For now, we'll just filter the mock data
-    let filtered = mockResults;
-    
-    if (selectedLottery) {
-      filtered = filtered.filter(result => result.lotteryType === selectedLottery);
+  // Query para buscar o resultado da loteria
+  const { refetch, isLoading, isError } = useQuery({
+    queryKey: ['lotteryResult', selectedLottery, drawNumber],
+    queryFn: async () => {
+      if (!selectedLottery || !drawNumber) {
+        return null;
+      }
+      const apiResponse = await fetchLotteryResult(selectedLottery as LotteryType, drawNumber);
+      return convertApiResponseToLotteryResult(apiResponse);
+    },
+    enabled: false,
+    retry: 1
+  });
+  
+  const handleSearch = async () => {
+    if (!selectedLottery) {
+      toast.error('Por favor, selecione uma loteria');
+      return;
     }
     
-    if (drawNumber) {
-      filtered = filtered.filter(result => result.drawNumber.includes(drawNumber));
+    if (!drawNumber) {
+      toast.error('Por favor, insira um número de concurso');
+      return;
     }
     
-    setResults(filtered);
+    setIsSearching(true);
+    
+    try {
+      const result = await refetch();
+      
+      if (result.error) {
+        throw result.error;
+      }
+      
+      if (result.data) {
+        // Se encontrou um resultado, atualiza a lista de resultados
+        setResults([result.data]);
+        toast.success(`Resultado do concurso ${drawNumber} encontrado`);
+      } else {
+        // Se não encontrou nenhum resultado, mostra uma lista vazia
+        setResults([]);
+        toast.error(`Nenhum resultado encontrado para o concurso ${drawNumber}`);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar resultado:', error);
+      toast.error('Ocorreu um erro ao buscar o resultado. Usando dados locais.');
+      
+      // Em caso de erro, filtra os resultados do mock
+      let filtered = mockResults;
+      
+      if (selectedLottery) {
+        filtered = filtered.filter(result => result.lotteryType === selectedLottery);
+      }
+      
+      if (drawNumber) {
+        filtered = filtered.filter(result => result.drawNumber.includes(drawNumber));
+      }
+      
+      setResults(filtered);
+    } finally {
+      setIsSearching(false);
+    }
   };
   
   return (
@@ -120,21 +173,42 @@ export default function SearchResults() {
             />
           </div>
           
-          <Button onClick={handleSearch}>Buscar</Button>
+          <Button onClick={handleSearch} disabled={isLoading || isSearching}>
+            {isLoading ? 'Buscando...' : 'Buscar'}
+          </Button>
         </div>
         
-        <div className="grid gap-6 md:grid-cols-3">
-          {results.map((result) => (
-            <LotteryResultCard key={result.id} result={result} />
-          ))}
-        </div>
+        {isLoading && (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div>
+          </div>
+        )}
         
-        {results.length === 0 && (
+        {!isLoading && results.length > 0 && (
+          <div className="grid gap-6 md:grid-cols-3">
+            {results.map((result) => (
+              <LotteryResultCard key={result.id} result={result} />
+            ))}
+          </div>
+        )}
+        
+        {!isLoading && results.length === 0 && (
           <div className="bg-card border border-border rounded-lg p-10 text-center">
             <p className="text-muted-foreground">
               Nenhum resultado encontrado com os critérios especificados.
             </p>
           </div>
+        )}
+        
+        {/* Paginação (para implementação futura quando houver múltiplos resultados) */}
+        {results.length > 10 && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationLink href="#" isActive>1</PaginationLink>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         )}
       </div>
     </MainLayout>
