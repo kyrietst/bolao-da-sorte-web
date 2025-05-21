@@ -9,7 +9,136 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      participants: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          pool_id: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          pool_id?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          pool_id?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participants_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pools: {
+        Row: {
+          admin_id: string
+          contribution_amount: number
+          created_at: string
+          draw_date: string
+          id: string
+          lottery_type: string
+          max_participants: number
+          name: string
+          num_tickets: number
+          status: string
+        }
+        Insert: {
+          admin_id: string
+          contribution_amount: number
+          created_at?: string
+          draw_date: string
+          id?: string
+          lottery_type: string
+          max_participants: number
+          name: string
+          num_tickets?: number
+          status?: string
+        }
+        Update: {
+          admin_id?: string
+          contribution_amount?: number
+          created_at?: string
+          draw_date?: string
+          id?: string
+          lottery_type?: string
+          max_participants?: number
+          name?: string
+          num_tickets?: number
+          status?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+        }
+        Relationships: []
+      }
+      tickets: {
+        Row: {
+          created_at: string
+          id: string
+          numbers: number[]
+          pool_id: string | null
+          ticket_number: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          numbers: number[]
+          pool_id?: string | null
+          ticket_number: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          numbers?: number[]
+          pool_id?: string | null
+          ticket_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

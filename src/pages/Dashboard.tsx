@@ -1,10 +1,17 @@
 
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import MainLayout from '@/layout/MainLayout';
 import StatCard from '@/components/dashboard/StatCard';
 import LotteryResultCard from '@/components/dashboard/LotteryResult';
-import { LotteryResult, LotteryType } from '@/types';
+import CreatePoolForm from '@/components/pools/CreatePoolForm';
+import { LotteryResult, LotteryType, Pool, SupabasePool } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
+import { CalendarCheck2, Loader2, Ticket, Users } from 'lucide-react';
 
-// Mock data - will be replaced with Supabase data
+// Mock data - será substituído com dados reais
 const mockResults: LotteryResult[] = [
   {
     id: '1',
@@ -21,7 +28,7 @@ const mockResults: LotteryResult[] = [
     drawDate: '2024-01-10',
     numbers: [1, 2, 3, 4, 5, 10],
     winners: 0,
-    accumulated: false,  // Added the missing accumulated property
+    accumulated: false,
   },
   {
     id: '3',
@@ -33,80 +40,143 @@ const mockResults: LotteryResult[] = [
   },
 ];
 
+const convertSupabasePoolToPool = (pool: SupabasePool): Pool => {
+  return {
+    id: pool.id,
+    name: pool.name,
+    lotteryType: pool.lottery_type,
+    drawDate: pool.draw_date,
+    numTickets: pool.num_tickets,
+    maxParticipants: pool.max_participants,
+    contributionAmount: Number(pool.contribution_amount),
+    adminId: pool.admin_id,
+    status: pool.status,
+    createdAt: pool.created_at,
+  };
+};
+
 export default function Dashboard() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [pools, setPools] = useState<Pool[]>([]);
+  const [participantsCount, setParticipantsCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [nextDrawDate, setNextDrawDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchUserPools();
+    }
+  }, [user]);
+
+  const fetchUserPools = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      // Buscar bolões que o usuário é administrador
+      const { data: adminPools, error: adminError } = await supabase
+        .from('pools')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (adminError) throw adminError;
+      
+      // Buscar bolões que o usuário participa
+      const { data: participantPools, error: participantError } = await supabase
+        .from('participants')
+        .select('pool_id')
+        .eq('user_id', user.id);
+
+      if (participantError) throw participantError;
+
+      // Combinar os bolões
+      let allPoolsList = adminPools || [];
+      let participantPoolsData: SupabasePool[] = [];
+      
+      if (participantPools && participantPools.length > 0) {
+        const participantPoolIds = participantPools.map(p => p.pool_id);
+        
+        const { data, error } = await supabase
+          .from('pools')
+          .select('*')
+          .in('id', participantPoolIds)
+          .not('admin_id', 'eq', user.id); // Exclui bolões que ele é admin (para evitar duplicações)
+        
+        if (!error && data) {
+          participantPoolsData = data;
+          allPoolsList = [...allPoolsList, ...participantPoolsData];
+        }
+      }
+
+      // Converter para o formato Pool
+      const formattedPools = allPoolsList.map(convertSupabasePoolToPool);
+      setPools(formattedPools);
+
+      // Calcular próximo sorteio
+      const activePools = formattedPools.filter(p => p.status === 'ativo');
+      if (activePools.length > 0) {
+        const now = new Date();
+        const futurePools = activePools
+          .filter(p => new Date(p.drawDate) > now)
+          .sort((a, b) => new Date(a.drawDate).getTime() - new Date(b.drawDate).getTime());
+        
+        if (futurePools.length > 0) {
+          setNextDrawDate(new Date(futurePools[0].drawDate).toLocaleDateString('pt-BR'));
+        }
+      }
+
+      // Buscar contagem total de participantes nos bolões do usuário
+      if (allPoolsList.length > 0) {
+        const poolIds = allPoolsList.map(p => p.id);
+        const { count, error } = await supabase
+          .from('participants')
+          .select('*', { count: 'exact', head: true })
+          .in('pool_id', poolIds);
+
+        if (!error) {
+          setParticipantsCount(count || 0);
+        }
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao buscar dados",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Bem-vindo(a), adm! Visualize seus bolões ativos.</p>
+          <p className="text-muted-foreground">
+            Bem-vindo(a), {user?.user_metadata?.name || 'Usuário'}! Visualize seus bolões ativos.
+          </p>
         </div>
         
         <div className="grid gap-6 md:grid-cols-3">
           <StatCard
             title="Total de Bolões"
-            value={0}
+            value={pools.length}
             description="Bolões que você participa"
-            icon={
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5 text-muted-foreground"
-              >
-                <circle cx="8" cy="21" r="1" />
-                <circle cx="19" cy="21" r="1" />
-                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-              </svg>
-            }
+            icon={<Ticket className="h-5 w-5 text-muted-foreground" />}
           />
           <StatCard
             title="Participações"
-            value={0}
+            value={participantsCount}
             description="Participantes nos seus bolões"
-            icon={
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5 text-muted-foreground"
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            }
+            icon={<Users className="h-5 w-5 text-muted-foreground" />}
           />
           <StatCard
             title="Próximo Sorteio"
-            value="Nenhum sorteio"
+            value={nextDrawDate || "Nenhum sorteio"}
             description="Data do próximo sorteio"
-            icon={
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5 text-muted-foreground"
-              >
-                <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
-                <line x1="16" x2="16" y1="2" y2="6" />
-                <line x1="8" x2="8" y1="2" y2="6" />
-                <line x1="3" x2="21" y1="10" y2="10" />
-              </svg>
-            }
+            icon={<CalendarCheck2 className="h-5 w-5 text-muted-foreground" />}
           />
         </div>
         
@@ -121,26 +191,67 @@ export default function Dashboard() {
         
         <div>
           <h2 className="text-xl font-semibold mb-4">Seus Bolões</h2>
-          <div className="bg-card border border-border rounded-lg p-10 text-center">
-            <div className="mb-4 flex justify-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-12 w-12 text-muted-foreground"
-              >
-                <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-              </svg>
+          {loading ? (
+            <div className="bg-card border border-border rounded-lg p-10 flex justify-center">
+              <Loader2 className="h-8 w-8 animate-spin" />
             </div>
-            <h3 className="text-lg font-semibold">Nenhum bolão encontrado</h3>
-            <p className="text-muted-foreground mt-1">
-              Você ainda não participa de nenhum bolão. Use o link de convite para participar.
-            </p>
-          </div>
+          ) : pools.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {pools.slice(0, 3).map((pool) => (
+                <Link 
+                  key={pool.id}
+                  to={`/boloes/${pool.id}`}
+                  className="bg-card border border-border rounded-lg p-6 hover:border-primary/20 hover:bg-muted/20 transition-colors"
+                >
+                  <h3 className="font-semibold text-lg mb-2">{pool.name}</h3>
+                  <div className="flex justify-between text-sm text-muted-foreground mb-4">
+                    <span>
+                      {pool.lotteryType.charAt(0).toUpperCase() + pool.lotteryType.slice(1)}
+                    </span>
+                    <span>Sorteio: {new Date(pool.drawDate).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                      pool.status === 'ativo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {pool.status === 'ativo' ? 'Ativo' : 'Finalizado'}
+                    </span>
+                    <span className="text-sm font-medium text-primary">Ver detalhes →</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-card border border-border rounded-lg p-10 text-center">
+              <div className="mb-4 flex justify-center">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-12 w-12 text-muted-foreground"
+                >
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold">Nenhum bolão encontrado</h3>
+              <p className="text-muted-foreground mt-1 mb-4">
+                Você ainda não participa de nenhum bolão. Crie um novo ou use o link de convite para participar.
+              </p>
+              <CreatePoolForm />
+            </div>
+          )}
+          
+          {pools.length > 3 && (
+            <div className="mt-4 text-center">
+              <Link to="/meus-boloes">
+                <Button variant="outline">Ver todos os bolões</Button>
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>

@@ -1,6 +1,15 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { LogOut, User } from 'lucide-react';
 
 type SidebarLinkProps = {
   to: string;
@@ -27,6 +36,11 @@ const SidebarLink = ({ to, icon, label, active }: SidebarLinkProps) => {
 export default function Sidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
+  const { user, profile, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <div className="w-60 bg-sidebar h-screen border-r border-border flex flex-col">
@@ -121,15 +135,36 @@ export default function Sidebar() {
       </div>
 
       <div className="border-t border-border p-4">
-        <div className="flex items-center">
-          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-            <span className="text-gray-500 font-medium">A</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium text-sidebar-foreground">Admin</span>
-            <span className="text-xs text-muted-foreground">Participante</span>
-          </div>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="w-full">
+            <div className="flex items-center cursor-pointer">
+              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center mr-3">
+                <span className="text-gray-500 font-medium">
+                  {profile?.name?.charAt(0) || user?.email?.charAt(0)?.toUpperCase() || 'U'}
+                </span>
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-medium text-sidebar-foreground">
+                  {profile?.name || 'Usuário'}
+                </span>
+                <span className="text-xs text-muted-foreground">{user?.email}</span>
+              </div>
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <Link to="/perfil">
+              <DropdownMenuItem>
+                <User className="h-4 w-4 mr-2" />
+                Meu Perfil
+              </DropdownMenuItem>
+            </Link>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSignOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sair
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );

@@ -67,3 +67,41 @@ export type Prize = {
   distributionPerParticipant: number;
   distributed: boolean;
 };
+
+export type Profile = {
+  id: string;
+  name: string;
+  email: string;
+  created_at: string;
+};
+
+export type SupabasePool = {
+  id: string;
+  name: string;
+  lottery_type: LotteryType;
+  draw_date: string;
+  num_tickets: number;
+  max_participants: number;
+  contribution_amount: number;
+  admin_id: string;
+  status: 'ativo' | 'finalizado';
+  created_at: string;
+};
+
+export type SupabaseParticipant = {
+  id: string;
+  user_id: string;
+  pool_id: string;
+  name: string;
+  email: string;
+  status: PaymentStatus;
+  created_at: string;
+};
+
+export type SupabaseTicket = {
+  id: string;
+  pool_id: string;
+  ticket_number: string;
+  numbers: number[];
+  created_at: string;
+};
