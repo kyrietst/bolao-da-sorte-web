@@ -21,6 +21,7 @@ const mockResults: LotteryResult[] = [
     drawDate: '2024-01-10',
     numbers: [1, 2, 3, 4, 5, 10],
     winners: 0,
+    accumulated: false,  // Added the missing accumulated property
   },
   {
     id: '3',
