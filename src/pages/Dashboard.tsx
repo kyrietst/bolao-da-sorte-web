@@ -92,7 +92,13 @@ export default function Dashboard() {
       if (participantError) throw participantError;
 
       // Combinar os bolões
-      let allPoolsList: SupabasePool[] = adminPools || [];
+      // Transformamos o tipo explicitamente para garantir que o lottery_type seja reconhecido como LotteryType
+      const adminPoolsTyped = adminPools?.map(pool => ({
+        ...pool,
+        lottery_type: pool.lottery_type as LotteryType
+      })) as SupabasePool[] || [];
+      
+      let allPoolsList: SupabasePool[] = adminPoolsTyped;
       let participantPoolsData: SupabasePool[] = [];
       
       if (participantPools && participantPools.length > 0) {
@@ -105,7 +111,12 @@ export default function Dashboard() {
           .not('admin_id', 'eq', user.id); // Exclui bolões que ele é admin (para evitar duplicações)
         
         if (!error && data) {
-          participantPoolsData = data as SupabasePool[];
+          // Aplicamos a mesma transformação aqui para garantir o tipo correto
+          participantPoolsData = data.map(pool => ({
+            ...pool,
+            lottery_type: pool.lottery_type as LotteryType
+          })) as SupabasePool[];
+          
           allPoolsList = [...allPoolsList, ...participantPoolsData];
         }
       }

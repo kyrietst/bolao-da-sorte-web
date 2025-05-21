@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import MainLayout from '@/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import CreatePoolForm from '@/components/pools/CreatePoolForm';
-import { Pool, SupabasePool } from '@/types';
+import { Pool, SupabasePool, LotteryType } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
@@ -68,11 +68,22 @@ export default function MyPools() {
           .not('admin_id', 'eq', user.id); // Exclui bolões que ele é admin (para evitar duplicações)
         
         if (error) throw error;
-        participantPoolsData = data as SupabasePool[] || [];
+        
+        // Aplicamos a transformação para garantir o tipo correto
+        participantPoolsData = data?.map(pool => ({
+          ...pool,
+          lottery_type: pool.lottery_type as LotteryType
+        })) as SupabasePool[] || [];
       }
 
+      // Transformamos o adminPools também
+      const adminPoolsTyped = adminPools?.map(pool => ({
+        ...pool,
+        lottery_type: pool.lottery_type as LotteryType
+      })) as SupabasePool[] || [];
+
       // Combinar os bolões e converter para o formato Pool
-      const allPools = [...(adminPools as SupabasePool[] || []), ...participantPoolsData];
+      const allPools = [...adminPoolsTyped, ...participantPoolsData];
       const formattedPools = allPools.map(convertSupabasePoolToPool);
       
       setPools(formattedPools);
