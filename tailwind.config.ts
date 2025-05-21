@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,19 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				lottery: {
+					megasena: '#00A651',
+					lotofacil: '#930089',
+					quina: '#260085',
+					lotomania: '#F78100',
+					timemania: '#00FF48',
+					duplasena: '#A61324',
+				},
+				status: {
+					confirmado: '#10B981',
+					pago: '#3B82F6',
+					pendente: '#EF4444',
 				}
 			},
 			borderRadius: {
