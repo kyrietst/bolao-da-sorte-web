@@ -13,6 +13,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => {},
   signUp: async () => {},
   signOut: async () => {},
+  resetPassword: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -155,6 +157,37 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?tab=reset-password`,
+      });
+      
+      if (error) {
+        toast({
+          title: "Erro ao enviar email",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      toast({
+        title: "Email enviado com sucesso",
+        description: "Verifique sua caixa de entrada para redefinir sua senha.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao enviar email",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const signOut = async () => {
     try {
       setLoading(true);
@@ -181,7 +214,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       loading, 
       signIn, 
       signUp, 
-      signOut 
+      signOut,
+      resetPassword
     }}>
       {children}
     </AuthContext.Provider>

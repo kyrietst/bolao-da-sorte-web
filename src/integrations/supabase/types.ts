@@ -9,6 +9,125 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      favorite_tickets: {
+        Row: {
+          created_at: string | null
+          id: string
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_tickets_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      generated_games: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          generated_combinations: number[] | null
+          id: string
+          numbers_per_game: number
+          selected_numbers: number[] | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          generated_combinations?: number[] | null
+          id?: string
+          numbers_per_game?: number
+          selected_numbers?: number[] | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          generated_combinations?: number[] | null
+          id?: string
+          numbers_per_game?: number
+          selected_numbers?: number[] | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      lottery_results: {
+        Row: {
+          created_at: string
+          draw_date: string
+          draw_number: number
+          id: string
+          lottery_type: string
+          numbers: number[]
+          prize_values: Json | null
+        }
+        Insert: {
+          created_at?: string
+          draw_date: string
+          draw_number: number
+          id?: string
+          lottery_type: string
+          numbers: number[]
+          prize_values?: Json | null
+        }
+        Update: {
+          created_at?: string
+          draw_date?: string
+          draw_number?: number
+          id?: string
+          lottery_type?: string
+          numbers?: number[]
+          prize_values?: Json | null
+        }
+        Relationships: []
+      }
+      lottery_results_cache: {
+        Row: {
+          created_at: string | null
+          draw_date: string
+          draw_number: string
+          id: string
+          lottery_type: string
+          response: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          draw_date: string
+          draw_number: string
+          id?: string
+          lottery_type: string
+          response: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          draw_date?: string
+          draw_number?: string
+          id?: string
+          lottery_type?: string
+          response?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       participants: {
         Row: {
           created_at: string
@@ -42,10 +161,56 @@ export type Database = {
             foreignKeyName: "participants_pool_id_fkey"
             columns: ["pool_id"]
             isOneToOne: false
+            referencedRelation: "extended_pools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "participants_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
             referencedRelation: "pools"
             referencedColumns: ["id"]
           },
         ]
+      }
+      plans: {
+        Row: {
+          active: boolean | null
+          created_at: string
+          description: string | null
+          features: Json
+          id: string
+          interval: string
+          name: string
+          price: number
+          stripe_price_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          interval: string
+          name: string
+          price: number
+          stripe_price_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string
+          description?: string | null
+          features?: Json
+          id?: string
+          interval?: string
+          name?: string
+          price?: number
+          stripe_price_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       pools: {
         Row: {
@@ -92,20 +257,131 @@ export type Database = {
           email: string | null
           id: string
           name: string | null
+          stripe_customer_id: string | null
+          subscription_id: string | null
         }
         Insert: {
           created_at?: string
           email?: string | null
           id: string
           name?: string | null
+          stripe_customer_id?: string | null
+          subscription_id?: string | null
         }
         Update: {
           created_at?: string
           email?: string | null
           id?: string
           name?: string | null
+          stripe_customer_id?: string | null
+          subscription_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          cancel_at: string | null
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          id: string
+          plan_id: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_end: string | null
+          trial_start: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id: string
+          status: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          trial_start?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at?: string | null
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          id?: string
+          plan_id?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_end?: string | null
+          trial_start?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_results: {
+        Row: {
+          created_at: string
+          draw_number: number
+          hits: number
+          id: string
+          matched_numbers: number[] | null
+          prize_value: number | null
+          ticket_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          draw_number: number
+          hits: number
+          id?: string
+          matched_numbers?: number[] | null
+          prize_value?: number | null
+          ticket_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          draw_number?: number
+          hits?: number
+          id?: string
+          matched_numbers?: number[] | null
+          prize_value?: number | null
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_results_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tickets: {
         Row: {
@@ -134,20 +410,99 @@ export type Database = {
             foreignKeyName: "tickets_pool_id_fkey"
             columns: ["pool_id"]
             isOneToOne: false
+            referencedRelation: "extended_pools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
             referencedRelation: "pools"
             referencedColumns: ["id"]
           },
         ]
       }
+      user_lottery_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          lottery_types: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lottery_types?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lottery_types?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      extended_pools: {
+        Row: {
+          admin_email: string | null
+          admin_id: string | null
+          admin_name: string | null
+          admin_profile_id: string | null
+          contribution_amount: number | null
+          created_at: string | null
+          draw_date: string | null
+          id: string | null
+          lottery_type: string | null
+          max_participants: number | null
+          name: string | null
+          num_tickets: number | null
+          status: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      check_feature_access: {
+        Args: { p_user_id: string; p_feature: string }
+        Returns: boolean
+      }
+      check_plan_limits: {
+        Args: { p_user_id: string; p_action: string; p_pool_id?: string }
+        Returns: boolean
+      }
+      check_ticket_results: {
+        Args: { p_ticket_id: string; p_draw_number: number }
+        Returns: {
+          id: string
+          ticket_number: string
+          numbers: number[]
+          winning_numbers: number[]
+          matched_numbers: number[]
+          hits: number
+          prize: number
+        }[]
+      }
+      cleanup_expired_games: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      get_user_plan: {
+        Args: { user_id: string }
+        Returns: Json
+      }
+      schedule_subscription_end: {
+        Args: { p_user_id: string; p_cancel_at: string }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      plan_type: "free" | "basic" | "premium" | "enterprise"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -262,6 +617,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      plan_type: ["free", "basic", "premium", "enterprise"],
+    },
   },
 } as const
