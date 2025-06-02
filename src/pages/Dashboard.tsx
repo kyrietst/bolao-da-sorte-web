@@ -193,8 +193,13 @@ export default function Dashboard() {
         </div>
         
         <div>
-          <h2 className="text-xl font-semibold mb-4">Últimos Resultados</h2>
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold">Últimos Resultados</h2>
+            <Button variant="outline" size="sm">
+              Ver todos
+            </Button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
             {mockResults.map((result) => (
               <LotteryResultCard key={result.id} result={result} />
             ))}
