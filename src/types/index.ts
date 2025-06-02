@@ -1,4 +1,3 @@
-
 export type User = {
   id: string;
   name: string;
@@ -14,7 +13,7 @@ export type LotteryType =
   'timemania' | 
   'duplasena';
 
-export type PaymentStatus = 'confirmado' | 'pago' | 'pendente';
+export type PaymentStatus = 'confirmado' | 'pago' | 'pendente' | 'ativo';
 
 export type Pool = {
   id: string;
