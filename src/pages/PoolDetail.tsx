@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '@/layout/MainLayout';
@@ -7,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ParticipantList from '@/components/participants/ParticipantList';
 import LotteryTicket from '@/components/lottery/LotteryTicket';
+import PoolResults from '@/components/pool/PoolResults';
 import { Participant, Pool, SupabasePool, Ticket, LotteryType, SupabaseParticipant, SupabaseTicket } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -215,6 +215,7 @@ export default function PoolDetail() {
           <TabsList>
             <TabsTrigger value="participantes">Participantes</TabsTrigger>
             <TabsTrigger value="bilhetes">Bilhetes</TabsTrigger>
+            <TabsTrigger value="resultados">Resultados</TabsTrigger>
             <TabsTrigger value="premios">Prêmios</TabsTrigger>
           </TabsList>
           
@@ -242,6 +243,10 @@ export default function PoolDetail() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+          
+          <TabsContent value="resultados" className="pt-6">
+            <PoolResults pool={pool} tickets={tickets} />
           </TabsContent>
           
           <TabsContent value="premios" className="pt-6">
