@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import ParticipantList from '@/components/participants/ParticipantList';
-import LotteryTicket from '@/components/lottery/LotteryTicket';
+import TicketGamesDisplay from '@/components/lottery/TicketGamesDisplay';
 import PoolResults from '@/components/pool/PoolResults';
 import { Participant, Pool, SupabasePool, Ticket, LotteryType, SupabaseParticipant, SupabaseTicket } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
@@ -229,9 +229,15 @@ export default function PoolDetail() {
           
           <TabsContent value="bilhetes" className="pt-6">
             {tickets.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-3">
+              <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
                 {tickets.map(ticket => (
-                  <LotteryTicket key={ticket.id} ticket={ticket} type={pool.lotteryType as LotteryType} />
+                  <TicketGamesDisplay 
+                    key={ticket.id} 
+                    ticket={ticket} 
+                    type={pool.lotteryType as LotteryType}
+                    gamesPerTicket={10}
+                    numbersPerGame={6}
+                  />
                 ))}
               </div>
             ) : (
