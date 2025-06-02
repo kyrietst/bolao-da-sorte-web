@@ -10,9 +10,18 @@ type LotteryNumbersProps = {
 
 export function LotteryNumbers({ type, numbers, size = 'md' }: LotteryNumbersProps) {
   const sizeClasses = {
-    sm: 'h-6 w-6 text-xs',
-    md: 'h-8 w-8 text-sm',
-    lg: 'h-10 w-10 text-base',
+    sm: 'h-8 w-8 text-xs',
+    md: 'h-10 w-10 text-sm',
+    lg: 'h-12 w-12 text-base',
+  };
+
+  const lotteryColors = {
+    megasena: 'bg-lottery-megasena',
+    lotofacil: 'bg-lottery-lotofacil',
+    quina: 'bg-lottery-quina',
+    lotomania: 'bg-lottery-lotomania',
+    timemania: 'bg-lottery-timemania',
+    duplasena: 'bg-lottery-duplasena',
   };
   
   return (
@@ -21,12 +30,12 @@ export function LotteryNumbers({ type, numbers, size = 'md' }: LotteryNumbersPro
         <div
           key={index}
           className={cn(
-            `rounded-full flex items-center justify-center font-semibold text-white`,
-            `bg-lottery-${type}`,
+            'rounded-full flex items-center justify-center font-bold text-white shadow-sm',
+            lotteryColors[type],
             sizeClasses[size]
           )}
         >
-          {number}
+          {String(number).padStart(2, '0')}
         </div>
       ))}
     </div>

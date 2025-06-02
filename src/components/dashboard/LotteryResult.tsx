@@ -50,10 +50,13 @@ export default function LotteryResultCard({ result }: LotteryResultCardProps) {
 
       {/* Content */}
       <div className="p-4">
-        <LotteryNumbers type={result.lotteryType} numbers={result.numbers} size="sm" />
+        {/* Números sorteados com cores da loteria */}
+        <div className="mb-4">
+          <LotteryNumbers type={result.lotteryType} numbers={result.numbers} size="sm" />
+        </div>
         
         {/* Status */}
-        <div className="mt-4 text-center">
+        <div className="text-center">
           {result.accumulated ? (
             <div className="bg-red-50 rounded-lg p-3">
               <p className="text-red-800 font-semibold text-sm">Acumulou!</p>
@@ -85,7 +88,7 @@ export default function LotteryResultCard({ result }: LotteryResultCardProps) {
               {showDetails ? (
                 <>
                   <ChevronUp className="h-3 w-3 mr-1" />
-                  Ver Detalhes
+                  Ocultar Detalhes
                 </>
               ) : (
                 <>
