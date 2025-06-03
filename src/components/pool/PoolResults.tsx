@@ -14,10 +14,16 @@ type PoolResultsProps = {
   tickets: Ticket[];
 };
 
-type TicketResult = {
-  ticket: Ticket;
+type GameResult = {
+  gameNumbers: number[];
   hits: number;
   matchedNumbers: number[];
+};
+
+type TicketResult = {
+  ticket: Ticket;
+  totalHits: number;
+  gameResults: GameResult[];
   prizeValue: number;
 };
 
@@ -53,35 +59,62 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
       
       // Verificar cada bilhete contra o resultado
       const ticketResults: TicketResult[] = tickets.map(ticket => {
-        const matchedNumbers = ticket.numbers.filter(num => 
-          lotteryResult.numbers.includes(num)
-        );
-        const hits = matchedNumbers.length;
+        // Dividir os números do bilhete em volantes/jogos de 6 números
+        const gamesPerTicket = 10;
+        const numbersPerGame = 6;
+        const games = [];
+        const totalNumbers = ticket.numbers.length;
+        const numbersUsed = Math.min(totalNumbers, gamesPerTicket * numbersPerGame);
         
-        // Calcular prêmio baseado nos acertos (simulado)
+        for (let i = 0; i < gamesPerTicket && i * numbersPerGame < numbersUsed; i++) {
+          const gameNumbers = ticket.numbers.slice(
+            i * numbersPerGame, 
+            (i + 1) * numbersPerGame
+          );
+          if (gameNumbers.length === numbersPerGame) {
+            games.push(gameNumbers.sort((a, b) => a - b));
+          }
+        }
+
+        // Verificar acertos para cada volante/jogo
+        const gameResults: GameResult[] = games.map(gameNumbers => {
+          const matchedNumbers = gameNumbers.filter(num => 
+            lotteryResult.numbers.includes(num)
+          );
+          return {
+            gameNumbers,
+            hits: matchedNumbers.length,
+            matchedNumbers
+          };
+        });
+
+        const totalHits = gameResults.reduce((sum, game) => sum + game.hits, 0);
+        
+        // Calcular prêmio baseado nos acertos totais (simulado)
         let prizeValue = 0;
         if (pool.lotteryType === 'megasena') {
-          if (hits === 6) prizeValue = 50000000;
-          else if (hits === 5) prizeValue = 50000;
-          else if (hits === 4) prizeValue = 1000;
+          const maxGameHits = Math.max(...gameResults.map(g => g.hits), 0);
+          if (maxGameHits === 6) prizeValue = 50000000;
+          else if (maxGameHits === 5) prizeValue = 50000;
+          else if (maxGameHits === 4) prizeValue = 1000;
         } else if (pool.lotteryType === 'lotofacil') {
-          if (hits === 15) prizeValue = 1500000;
-          else if (hits === 14) prizeValue = 1500;
-          else if (hits === 13) prizeValue = 25;
-          else if (hits === 12) prizeValue = 10;
-          else if (hits === 11) prizeValue = 5;
+          if (totalHits >= 15) prizeValue = 1500000;
+          else if (totalHits >= 14) prizeValue = 1500;
+          else if (totalHits >= 13) prizeValue = 25;
+          else if (totalHits >= 12) prizeValue = 10;
+          else if (totalHits >= 11) prizeValue = 5;
         }
 
         return {
           ticket,
-          hits,
-          matchedNumbers,
+          totalHits,
+          gameResults,
           prizeValue
         };
       });
 
       // Calcular estatísticas
-      const maxHits = Math.max(...ticketResults.map(r => r.hits));
+      const maxHits = Math.max(...ticketResults.map(r => r.totalHits));
       const prizeWinners = ticketResults.filter(r => r.prizeValue > 0).length;
       const totalPrize = ticketResults.reduce((sum, r) => sum + r.prizeValue, 0);
 
@@ -115,6 +148,15 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
+  };
+
+  const lotteryColors = {
+    megasena: 'bg-lottery-megasena',
+    lotofacil: 'bg-lottery-lotofacil',
+    quina: 'bg-lottery-quina',
+    lotomania: 'bg-lottery-lotomania',
+    timemania: 'bg-lottery-timemania',
+    duplasena: 'bg-lottery-duplasena',
   };
 
   return (
@@ -175,22 +217,22 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
             </Card>
           </div>
 
-          {/* Lista de bilhetes com resultados */}
+          {/* Lista de bilhetes com resultados organizados por volantes */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Bilhetes Verificados</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {results.map((result, index) => (
+            <CardContent className="space-y-6">
+              {results.map((result) => (
                 <div key={result.ticket.id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <h4 className="font-medium">Bilhete {result.ticket.ticketNumber}</h4>
                       <Badge 
-                        variant={result.hits >= 4 ? "default" : "secondary"}
-                        className={result.hits >= 4 ? "bg-green-600" : ""}
+                        variant={result.totalHits >= 4 ? "default" : "secondary"}
+                        className={result.totalHits >= 4 ? "bg-green-600" : ""}
                       >
-                        {result.hits} {result.hits === 1 ? 'acerto' : 'acertos'}
+                        {result.totalHits} {result.totalHits === 1 ? 'acerto total' : 'acertos totais'}
                       </Badge>
                       {result.prizeValue > 0 && (
                         <Badge className="bg-yellow-500">
@@ -200,40 +242,42 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
                     </div>
                   </div>
                   
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div>
-                      <p className="text-xs text-gray-600 mb-1">Números jogados:</p>
-                      <div className="flex flex-wrap gap-1">
-                        {result.ticket.numbers.map((num, idx) => (
-                          <div
-                            key={idx}
-                            className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-medium ${
-                              result.matchedNumbers.includes(num)
-                                ? 'bg-green-500 text-white'
-                                : 'bg-gray-200 text-gray-700'
-                            }`}
-                          >
-                            {String(num).padStart(2, '0')}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {result.matchedNumbers.length > 0 && (
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Números acertados:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {result.matchedNumbers.map((num, idx) => (
-                            <div
-                              key={idx}
-                              className="h-6 w-6 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-medium"
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-700 mb-3">Volantes jogados:</h5>
+                    <div className="space-y-4">
+                      {result.gameResults.map((gameResult, gameIndex) => (
+                        <div key={gameIndex} className="border rounded-lg p-3 bg-gray-50">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-600">
+                              Volante {String(gameIndex + 1).padStart(2, '0')}
+                            </span>
+                            <Badge 
+                              variant={gameResult.hits > 0 ? "default" : "secondary"} 
+                              className={`text-xs ${gameResult.hits > 0 ? 'bg-green-600 text-white' : ''}`}
                             >
-                              {String(num).padStart(2, '0')}
-                            </div>
-                          ))}
+                              {gameResult.hits} {gameResult.hits === 1 ? 'acerto' : 'acertos'}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {gameResult.gameNumbers.map((number, numberIndex) => {
+                              const isWinning = gameResult.matchedNumbers.includes(number);
+                              return (
+                                <div
+                                  key={numberIndex}
+                                  className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ${
+                                    isWinning 
+                                      ? 'bg-green-500 ring-2 ring-green-300' 
+                                      : lotteryColors[pool.lotteryType as LotteryType]
+                                  }`}
+                                >
+                                  {String(number).padStart(2, '0')}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
