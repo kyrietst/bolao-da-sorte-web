@@ -237,7 +237,8 @@ export default function PoolDetail() {
                     type={pool.lotteryType as LotteryType}
                     gamesPerTicket={10}
                     numbersPerGame={6}
-                    showResults={false}
+                    showResults={true}
+                    drawNumber="3213"
                   />
                 ))}
               </div>
