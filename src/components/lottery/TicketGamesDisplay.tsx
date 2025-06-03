@@ -34,7 +34,7 @@ export default function TicketGamesDisplay({
   const [totalHits, setTotalHits] = useState(0);
   const [allMatchedNumbers, setAllMatchedNumbers] = useState<number[]>([]);
 
-  // Dividir os números do bilhete em jogos
+  // Dividir os números do bilhete em jogos/volantes
   const games = [];
   const totalNumbers = ticket.numbers.length;
   const numbersUsed = Math.min(totalNumbers, gamesPerTicket * numbersPerGame);
@@ -45,7 +45,7 @@ export default function TicketGamesDisplay({
       (i + 1) * numbersPerGame
     );
     if (gameNumbers.length === numbersPerGame) {
-      games.push(gameNumbers);
+      games.push(gameNumbers.sort((a, b) => a - b)); // Ordenar números do volante
     }
   }
 
@@ -109,9 +109,10 @@ export default function TicketGamesDisplay({
     return gameResults.find(result => result.gameIndex === gameIndex);
   };
 
-  const isNumberWinning = (number: number) => {
+  const isNumberWinning = (number: number, gameIndex: number) => {
     if (!showResults) return false;
-    return winningNumbers.includes(number);
+    const gameResult = getGameResult(gameIndex);
+    return gameResult?.matchedNumbers.includes(number) || false;
   };
 
   const lotteryColors = {
@@ -132,11 +133,11 @@ export default function TicketGamesDisplay({
           </CardTitle>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
-              {games.length} {games.length === 1 ? 'jogo' : 'jogos'}
+              {games.length} {games.length === 1 ? 'volante' : 'volantes'}
             </Badge>
             {showResults && totalHits > 0 && (
               <Badge className="text-xs bg-green-600 text-white">
-                {totalHits} acertos
+                {totalHits} acertos totais
               </Badge>
             )}
             <Star className="h-4 w-4 text-yellow-500" />
@@ -146,7 +147,7 @@ export default function TicketGamesDisplay({
       <CardContent className="space-y-4">
         {showResults && totalHits > 0 && (
           <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
-            <h4 className="text-sm font-medium text-green-800 mb-2">Números acertados:</h4>
+            <h4 className="text-sm font-medium text-green-800 mb-2">Total de números acertados:</h4>
             <div className="flex flex-wrap gap-1">
               {allMatchedNumbers.map((number, index) => (
                 <div
@@ -161,33 +162,36 @@ export default function TicketGamesDisplay({
         )}
 
         <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Números jogados:</h4>
-          <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700 mb-3">Volantes jogados:</h4>
+          <div className="space-y-4">
             {games.map((gameNumbers, gameIndex) => {
               const gameResult = getGameResult(gameIndex);
               const gameHits = gameResult?.hits || 0;
               
               return (
-                <div key={gameIndex} className="flex items-center gap-2">
-                  <div className="flex items-center gap-2 min-w-[40px]">
-                    <span className="text-xs text-muted-foreground w-6">
-                      {String(gameIndex + 1).padStart(2, '0')}
+                <div key={gameIndex} className="border rounded-lg p-3 bg-gray-50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-600">
+                      Volante {String(gameIndex + 1).padStart(2, '0')}
                     </span>
-                    {showResults && gameHits > 0 && (
-                      <Badge variant="secondary" className="text-xs px-1 py-0">
-                        {gameHits}
+                    {showResults && (
+                      <Badge 
+                        variant={gameHits > 0 ? "default" : "secondary"} 
+                        className={`text-xs ${gameHits > 0 ? 'bg-green-600 text-white' : ''}`}
+                      >
+                        {gameHits} {gameHits === 1 ? 'acerto' : 'acertos'}
                       </Badge>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-2">
                     {gameNumbers.map((number, numberIndex) => {
-                      const isWinning = isNumberWinning(number);
+                      const isWinning = isNumberWinning(number, gameIndex);
                       return (
                         <div
                           key={numberIndex}
-                          className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ${
+                          className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm ${
                             isWinning 
-                              ? 'bg-green-500' 
+                              ? 'bg-green-500 ring-2 ring-green-300' 
                               : lotteryColors[type]
                           }`}
                         >
@@ -204,11 +208,11 @@ export default function TicketGamesDisplay({
         
         {games.length === 0 && (
           <div className="text-center py-4 text-muted-foreground">
-            <p className="text-sm">Números insuficientes para formar jogos</p>
+            <p className="text-sm">Números insuficientes para formar volantes</p>
             <p className="text-xs">
               Este bilhete tem {ticket.numbers.length} números, 
               mas são necessários {gamesPerTicket * numbersPerGame} números 
-              para {gamesPerTicket} jogos de {numbersPerGame} números cada.
+              para {gamesPerTicket} volantes de {numbersPerGame} números cada.
             </p>
           </div>
         )}
