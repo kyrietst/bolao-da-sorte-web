@@ -120,7 +120,7 @@ export default function CompactTicketResult({
                           className={cn(
                             'h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold text-white',
                             isWinning 
-                              ? 'bg-green-500 ring-1 ring-green-300' 
+                              ? 'bg-green-500' 
                               : lotteryColors[lotteryType]
                           )}
                         >
