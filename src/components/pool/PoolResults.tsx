@@ -1,19 +1,15 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Pool, Ticket, LotteryType } from '@/types';
 import { fetchLatestLotteryResult, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
 import { useToast } from '@/components/ui/use-toast';
-import ResultsStats from './ResultsStats';
 import DrawnNumbersDisplay from './DrawnNumbersDisplay';
-import TicketResultDisplay from './TicketResultDisplay';
 import EmptyResultsState from './EmptyResultsState';
-
-type PoolResultsProps = {
-  pool: Pool;
-  tickets: Ticket[];
-};
+import CompactTicketResult from './CompactTicketResult';
+import EnhancedResultsStats from './EnhancedResultsStats';
+import { Filter, SortDesc } from 'lucide-react';
 
 type GameResult = {
   gameNumbers: number[];
@@ -36,10 +32,16 @@ type ResultStats = {
   drawNumber: string;
 };
 
+type PoolResultsProps = {
+  pool: Pool;
+  tickets: Ticket[];
+};
+
 export default function PoolResults({ pool, tickets }: PoolResultsProps) {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<TicketResult[]>([]);
   const [stats, setStats] = useState<ResultStats | null>(null);
+  const [sortBy, setSortBy] = useState<'hits' | 'prize' | 'ticket'>('hits');
   const { toast } = useToast();
 
   const checkResults = async () => {
@@ -144,6 +146,19 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
     }
   };
 
+  const sortedResults = [...results].sort((a, b) => {
+    switch (sortBy) {
+      case 'hits':
+        return b.totalHits - a.totalHits;
+      case 'prize':
+        return b.prizeValue - a.prizeValue;
+      case 'ticket':
+        return a.ticket.ticketNumber.localeCompare(b.ticket.ticketNumber);
+      default:
+        return 0;
+    }
+  });
+
   const lotteryColors = {
     megasena: 'bg-lottery-megasena',
     lotofacil: 'bg-lottery-lotofacil',
@@ -156,11 +171,17 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Resultados - {pool.name}</h3>
+        <div>
+          <h3 className="text-xl font-bold">Resultados - {pool.name}</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Verificação de bilhetes contra o último sorteio
+          </p>
+        </div>
         <Button 
           onClick={checkResults} 
           disabled={loading}
           className="bg-blue-600 hover:bg-blue-700"
+          size="lg"
         >
           {loading ? 'Verificando...' : 'Verificar Resultados'}
         </Button>
@@ -174,19 +195,43 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
             lotteryType={pool.lotteryType as LotteryType}
           />
 
-          <ResultsStats
+          <EnhancedResultsStats
             maxHits={stats.maxHits}
             prizeWinners={stats.prizeWinners}
             totalPrize={stats.totalPrize}
+            totalTickets={results.length}
           />
 
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Bilhetes Verificados</CardTitle>
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Bilhetes Verificados</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-gray-500" />
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'hits' | 'prize' | 'ticket')}
+                    className="text-sm border rounded px-2 py-1 bg-white"
+                  >
+                    <option value="hits">Ordenar por Acertos</option>
+                    <option value="prize">Ordenar por Prêmio</option>
+                    <option value="ticket">Ordenar por Bilhete</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Badge variant="outline">{results.length} bilhetes</Badge>
+                <Badge variant="outline">{stats.prizeWinners} premiados</Badge>
+                {stats.maxHits >= 4 && (
+                  <Badge className="bg-green-600">
+                    Melhor resultado: {stats.maxHits} acertos
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {results.map((result) => (
-                <TicketResultDisplay
+            <CardContent className="space-y-3">
+              {sortedResults.map((result) => (
+                <CompactTicketResult
                   key={result.ticket.id}
                   result={result}
                   lotteryColors={lotteryColors}
