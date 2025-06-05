@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Star } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 type TicketGamesDisplayProps = {
   ticket: Ticket;
@@ -130,30 +131,31 @@ export default function TicketGamesDisplay({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className="space-y-3">
         {games.map((gameNumbers, gameIndex) => {
           const gameResult = gameResults.find(result => result.gameIndex === gameIndex);
           const gameHits = gameResult?.hits || 0;
           
           return (
-            <div key={gameIndex} className="flex items-center gap-3 py-1">
+            <div key={gameIndex} className="flex items-center gap-3 py-2">
               <span className="text-sm font-mono text-gray-600 w-6">
                 {String(gameIndex + 1).padStart(2, '0')}
               </span>
-              <div className="flex gap-1">
+              <div className="flex gap-2">
                 {gameNumbers.map((number, numberIndex) => {
                   const isWinning = isNumberWinning(number, gameIndex);
                   return (
-                    <span
+                    <div
                       key={numberIndex}
-                      className={`text-sm font-mono px-1 ${
+                      className={cn(
+                        'h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm',
                         isWinning 
-                          ? 'bg-green-200 text-green-800 font-bold' 
-                          : 'text-gray-700'
-                      }`}
+                          ? 'bg-green-500 ring-2 ring-green-300' 
+                          : lotteryColors[type]
+                      )}
                     >
                       {String(number).padStart(2, '0')}
-                    </span>
+                    </div>
                   );
                 })}
               </div>
