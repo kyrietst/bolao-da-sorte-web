@@ -28,76 +28,89 @@ export interface LotteryApiResponse {
   proxConcurso: string;
 }
 
+// URLs alternativas da API
+const API_URLS = [
+  'https://loteriascaixa-api.herokuapp.com/api',
+  'https://servicebus2.caixa.gov.br/portaldeloterias/api/resultados',
+];
+
+/**
+ * Função auxiliar para fazer requisições com retry e múltiplas URLs
+ */
+async function fetchWithRetry(endpoint: string, maxRetries: number = 2): Promise<LotteryApiResponse> {
+  let lastError: Error;
+
+  for (const baseUrl of API_URLS) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Tentativa ${attempt + 1} para ${baseUrl}${endpoint}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos timeout
+
+        const response = await fetch(`${baseUrl}${endpoint}`, {
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache',
+          },
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data: LotteryApiResponse = await response.json();
+        console.log('Resposta da API recebida com sucesso:', data);
+        return data;
+
+      } catch (error: any) {
+        lastError = error;
+        console.log(`Erro na tentativa ${attempt + 1} com ${baseUrl}:`, error.message);
+        
+        if (attempt < maxRetries) {
+          // Aguarda antes da próxima tentativa
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        }
+      }
+    }
+  }
+
+  throw new Error(`Falha ao conectar com a API após todas as tentativas. Último erro: ${lastError.message}`);
+}
+
 /**
  * Busca o resultado de uma loteria específica pelo número do concurso
- * @param lotteryType - Tipo de loteria
- * @param drawNumber - Número do concurso
- * @returns Os dados do resultado do sorteio
  */
 export async function fetchLotteryResult(lotteryType: LotteryType, drawNumber: string): Promise<LotteryApiResponse> {
   const apiLotteryName = lotteryTypeMapping[lotteryType];
-  
-  try {
-    const response = await fetch(`https://loteriascaixa-api.herokuapp.com/api/${apiLotteryName}/${drawNumber}`);
-    
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar resultado: ${response.status}`);
-    }
-    
-    const data: LotteryApiResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Erro ao buscar dados da loteria:', error);
-    throw error;
-  }
+  return await fetchWithRetry(`/${apiLotteryName}/${drawNumber}`);
 }
 
 /**
  * Busca o último resultado de uma loteria específica
- * @param lotteryType - Tipo de loteria
- * @returns Os dados do último resultado do sorteio
  */
 export async function fetchLatestLotteryResult(lotteryType: LotteryType): Promise<LotteryApiResponse> {
   const apiLotteryName = lotteryTypeMapping[lotteryType];
-  
-  try {
-    const response = await fetch(`https://loteriascaixa-api.herokuapp.com/api/${apiLotteryName}/latest`);
-    
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar último resultado: ${response.status}`);
-    }
-    
-    const data: LotteryApiResponse = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Erro ao buscar último resultado da loteria:', error);
-    throw error;
-  }
+  return await fetchWithRetry(`/${apiLotteryName}/latest`);
 }
 
 /**
  * Busca resultado de loteria por data específica
- * @param lotteryType - Tipo de loteria
- * @param targetDate - Data alvo no formato YYYY-MM-DD
- * @returns Os dados do resultado do sorteio da data especificada
+ * Como a API não tem endpoint direto por data, busca o último resultado
+ * e verifica se a data corresponde
  */
 export async function fetchLotteryResultByDate(lotteryType: LotteryType, targetDate: string): Promise<LotteryApiResponse> {
-  const apiLotteryName = lotteryTypeMapping[lotteryType];
+  console.log(`Buscando resultado de ${lotteryType} para a data: ${targetDate}`);
   
   try {
-    console.log(`Buscando resultado de ${apiLotteryName} para a data: ${targetDate}`);
+    // Primeiro tenta buscar o último resultado
+    const latestResult = await fetchLatestLotteryResult(lotteryType);
     
-    // Primeiro, tenta buscar o último resultado para verificar se corresponde à data
-    const response = await fetch(`https://loteriascaixa-api.herokuapp.com/api/${apiLotteryName}/latest`);
-    
-    if (!response.ok) {
-      throw new Error(`Erro ao buscar resultado por data: ${response.status}`);
-    }
-    
-    const data: LotteryApiResponse = await response.json();
-    
-    // Converter a data da API (DD/MM/YYYY) para comparação
-    const resultDate = data.data;
+    // Converte a data da API (DD/MM/YYYY) para comparação com a data alvo (YYYY-MM-DD)
+    const resultDate = latestResult.data;
     const [day, month, year] = resultDate.split('/');
     const apiDateFormatted = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     
@@ -105,12 +118,21 @@ export async function fetchLotteryResultByDate(lotteryType: LotteryType, targetD
     
     // Se as datas correspondem, retorna o resultado
     if (apiDateFormatted === targetDate) {
-      return data;
+      return latestResult;
     }
     
-    // Se não corresponde, tenta buscar por número de concurso estimado
-    // Como não temos um endpoint por data específica, isso é uma limitação da API
-    throw new Error(`Nenhum resultado encontrado para a data ${targetDate}. Último resultado disponível é de ${resultDate}.`);
+    // Se não corresponde, tenta estimar o número do concurso e buscar diretamente
+    const estimatedDrawNumber = estimateDrawNumberByDate(lotteryType, targetDate);
+    console.log(`Tentando buscar concurso estimado: ${estimatedDrawNumber}`);
+    
+    try {
+      const specificResult = await fetchLotteryResult(lotteryType, estimatedDrawNumber);
+      return specificResult;
+    } catch (specificError) {
+      console.log('Erro ao buscar concurso específico, retornando último resultado disponível');
+      // Se falhar, retorna o último resultado com aviso
+      throw new Error(`Concurso específico para ${targetDate} não encontrado. Último resultado disponível é de ${resultDate}.`);
+    }
     
   } catch (error) {
     console.error('Erro ao buscar resultado por data:', error);
@@ -120,19 +142,16 @@ export async function fetchLotteryResultByDate(lotteryType: LotteryType, targetD
 
 /**
  * Estima o número do concurso baseado na data
- * Esta é uma função auxiliar que pode ser melhorada com dados mais precisos
  */
 function estimateDrawNumberByDate(lotteryType: LotteryType, targetDate: string): string {
-  // Esta é uma estimativa simples. Em um sistema real, você teria
-  // um banco de dados com o histórico de concursos e suas datas
   const baseDate = new Date('2024-01-01');
   const target = new Date(targetDate);
   const daysDiff = Math.floor((target.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24));
   
-  // Megasena: sorteios às quartas e sábados (2 por semana)
   if (lotteryType === 'megasena') {
+    // Megasena: sorteios às quartas e sábados (2 por semana)
     const weeksFromBase = Math.floor(daysDiff / 7);
-    return String(2700 + (weeksFromBase * 2)); // Número base estimado
+    return String(2700 + (weeksFromBase * 2));
   }
   
   // Para outros tipos, retorna um número estimado
@@ -163,7 +182,6 @@ export function convertApiResponseToLotteryResult(response: LotteryApiResponse):
   const numbers = response.dezenas.map(num => parseInt(num, 10));
   
   // Converte o formato de data para o formato usado pela aplicação (YYYY-MM-DD)
-  // A API retorna no formato DD/MM/YYYY
   const dateParts = response.data.split('/');
   const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
   

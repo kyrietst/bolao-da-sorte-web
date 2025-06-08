@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pool, Ticket, LotteryType } from '@/types';
 import { fetchLotteryResultByDate, fetchLatestLotteryResult, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import DrawnNumbersDisplay from './DrawnNumbersDisplay';
 import EmptyResultsState from './EmptyResultsState';
 import CompactTicketResult from './CompactTicketResult';
 import EnhancedResultsStats from './EnhancedResultsStats';
-import { Filter, SortDesc } from 'lucide-react';
+import { Filter, AlertCircle, Wifi, WifiOff } from 'lucide-react';
 
 type GameResult = {
   gameNumbers: number[];
@@ -42,6 +42,7 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
   const [results, setResults] = useState<TicketResult[]>([]);
   const [stats, setStats] = useState<ResultStats | null>(null);
   const [sortBy, setSortBy] = useState<'hits' | 'prize' | 'ticket'>('hits');
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
   const checkResults = async () => {
@@ -55,53 +56,87 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
     }
 
     setLoading(true);
+    setRetryCount(prev => prev + 1);
+    
     try {
+      console.log('=== INICIANDO VERIFICAÇÃO DE RESULTADOS ===');
+      console.log('Pool:', pool.name);
+      console.log('Data do sorteio:', pool.drawDate);
+      console.log('Tipo de loteria:', pool.lotteryType);
+      console.log('Tentativa número:', retryCount + 1);
+
       // Converter a data do bolão para o formato esperado pela API
       const poolDate = new Date(pool.drawDate);
       const targetDate = poolDate.toISOString().split('T')[0]; // YYYY-MM-DD
       
-      console.log('Buscando resultado para a data específica do bolão:', targetDate);
+      console.log('Data alvo formatada:', targetDate);
       
+      toast({
+        title: "Conectando com a API...",
+        description: `Buscando resultado para ${poolDate.toLocaleDateString('pt-BR')}`,
+      });
+
       let apiResponse;
       let lotteryResult;
+      let isExactDateMatch = false;
       
       try {
         // Tenta buscar o resultado pela data específica
+        console.log('Tentando buscar resultado por data específica...');
         apiResponse = await fetchLotteryResultByDate(pool.lotteryType as LotteryType, targetDate);
         lotteryResult = convertApiResponseToLotteryResult(apiResponse);
         
-        toast({
-          title: "Resultado encontrado!",
-          description: `Resultado do sorteio de ${new Date(lotteryResult.drawDate).toLocaleDateString('pt-BR')} encontrado.`,
-        });
-        
-      } catch (dateError) {
-        console.log('Erro ao buscar por data específica, tentando último resultado:', dateError);
-        
-        // Se não conseguir buscar pela data específica, busca o último resultado
-        apiResponse = await fetchLatestLotteryResult(pool.lotteryType as LotteryType);
-        lotteryResult = convertApiResponseToLotteryResult(apiResponse);
-        
-        // Verificar se o resultado corresponde à data do bolão
+        // Verifica se as datas são exatamente iguais
         const poolDrawDate = new Date(pool.drawDate);
         const resultDrawDate = new Date(lotteryResult.drawDate);
+        isExactDateMatch = poolDrawDate.toDateString() === resultDrawDate.toDateString();
         
-        console.log('Data do bolão:', poolDrawDate.toDateString());
-        console.log('Data do resultado da API:', resultDrawDate.toDateString());
-        
-        // Mostrar aviso se as datas não correspondem
-        if (poolDrawDate.toDateString() !== resultDrawDate.toDateString()) {
+        if (isExactDateMatch) {
           toast({
-            title: "Atenção: Data do sorteio não corresponde",
-            description: `O bolão está configurado para ${poolDrawDate.toLocaleDateString('pt-BR')} mas o resultado disponível é de ${resultDrawDate.toLocaleDateString('pt-BR')}. Os bilhetes foram verificados contra o último resultado disponível.`,
+            title: "✅ Resultado encontrado!",
+            description: `Resultado oficial do sorteio de ${resultDrawDate.toLocaleDateString('pt-BR')} carregado com sucesso.`,
+          });
+        } else {
+          toast({
+            title: "⚠️ Data não corresponde",
+            description: `Bolão configurado para ${poolDrawDate.toLocaleDateString('pt-BR')}, mas o resultado disponível é de ${resultDrawDate.toLocaleDateString('pt-BR')}.`,
             variant: "default",
           });
         }
+        
+      } catch (dateError: any) {
+        console.log('Erro ao buscar por data específica:', dateError.message);
+        
+        // Se não conseguir buscar pela data específica, busca o último resultado
+        toast({
+          title: "Buscando último resultado...",
+          description: "Não foi possível encontrar resultado para a data específica.",
+        });
+        
+        try {
+          console.log('Tentando buscar último resultado disponível...');
+          apiResponse = await fetchLatestLotteryResult(pool.lotteryType as LotteryType);
+          lotteryResult = convertApiResponseToLotteryResult(apiResponse);
+          
+          const poolDrawDate = new Date(pool.drawDate);
+          const resultDrawDate = new Date(lotteryResult.drawDate);
+          
+          toast({
+            title: "⚠️ Usando último resultado disponível",
+            description: `Bolão: ${poolDrawDate.toLocaleDateString('pt-BR')} → Resultado: ${resultDrawDate.toLocaleDateString('pt-BR')}`,
+            variant: "default",
+          });
+          
+        } catch (latestError: any) {
+          throw new Error(`Falha ao buscar resultados: ${latestError.message}`);
+        }
       }
       
+      console.log('Resultado obtido:', lotteryResult);
+
       // Verificar cada bilhete contra o resultado
+      console.log('Iniciando verificação de bilhetes...');
       const ticketResults: TicketResult[] = tickets.map(ticket => {
-        // Dividir os números do bilhete em volantes/jogos de 6 números
         const gamesPerTicket = 10;
         const numbersPerGame = 6;
         const games = [];
@@ -118,7 +153,6 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
           }
         }
 
-        // Verificar acertos para cada volante/jogo
         const gameResults: GameResult[] = games.map(gameNumbers => {
           const matchedNumbers = gameNumbers.filter(num => 
             lotteryResult.numbers.includes(num)
@@ -169,24 +203,33 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
         drawNumber: lotteryResult.drawNumber
       });
 
+      console.log('Verificação concluída com sucesso!');
       toast({
-        title: "Resultados verificados!",
+        title: "✅ Verificação concluída!",
         description: `${ticketResults.length} bilhetes verificados contra o concurso ${lotteryResult.drawNumber}`,
       });
 
     } catch (error: any) {
-      console.error('Erro ao buscar resultados:', error);
+      console.error('=== ERRO NA VERIFICAÇÃO ===');
+      console.error('Erro completo:', error);
+      console.error('Mensagem:', error.message);
       
+      let errorTitle = "Erro ao verificar resultados";
       let errorMessage = "Não foi possível obter os resultados da loteria.";
       
-      if (error.message.includes('Failed to fetch')) {
-        errorMessage = "Erro de conexão com o serviço de resultados. Verifique sua conexão com a internet e tente novamente.";
-      } else if (error.message.includes('Nenhum resultado encontrado')) {
+      if (error.message.includes('Failed to fetch') || error.message.includes('Falha ao conectar')) {
+        errorTitle = "Erro de conexão";
+        errorMessage = "Problemas de conectividade com o serviço de resultados. Verifique sua conexão e tente novamente.";
+      } else if (error.message.includes('não encontrado')) {
+        errorTitle = "Resultado não encontrado";
         errorMessage = error.message;
+      } else if (error.message.includes('timeout')) {
+        errorTitle = "Tempo esgotado";
+        errorMessage = "A requisição demorou muito para responder. Tente novamente.";
       }
       
       toast({
-        title: "Erro ao verificar resultados",
+        title: errorTitle,
         description: errorMessage,
         variant: "destructive",
       });
@@ -225,6 +268,14 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
           <p className="text-sm text-muted-foreground mt-1">
             Verificação de bilhetes para o sorteio de {new Date(pool.drawDate).toLocaleDateString('pt-BR')}
           </p>
+          {retryCount > 0 && (
+            <div className="flex items-center gap-2 mt-2">
+              <AlertCircle className="h-4 w-4 text-orange-500" />
+              <span className="text-xs text-orange-600">
+                Tentativa {retryCount} • Problemas de conectividade detectados
+              </span>
+            </div>
+          )}
         </div>
         <Button 
           onClick={checkResults} 
@@ -232,7 +283,17 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
           className="bg-blue-600 hover:bg-blue-700"
           size="lg"
         >
-          {loading ? 'Verificando...' : 'Verificar Resultados'}
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <WifiOff className="h-4 w-4 animate-spin" />
+              Conectando...
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Wifi className="h-4 w-4" />
+              {retryCount > 0 ? 'Tentar Novamente' : 'Verificar Resultados'}
+            </div>
+          )}
         </Button>
       </div>
 
@@ -283,7 +344,14 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
                 <CompactTicketResult
                   key={result.ticket.id}
                   result={result}
-                  lotteryColors={lotteryColors}
+                  lotteryColors={{
+                    megasena: 'bg-lottery-megasena',
+                    lotofacil: 'bg-lottery-lotofacil',
+                    quina: 'bg-lottery-quina',
+                    lotomania: 'bg-lottery-lotomania',
+                    timemania: 'bg-lottery-timemania',
+                    duplasena: 'bg-lottery-duplasena',
+                  }}
                   lotteryType={pool.lotteryType}
                 />
               ))}
