@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pool, Ticket, LotteryType } from '@/types';
-import { fetchLatestLotteryResult, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
+import { fetchLotteryResultByDate, fetchLatestLotteryResult, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
 import { useToast } from '@/components/ui/use-toast';
 import DrawnNumbersDisplay from './DrawnNumbersDisplay';
 import EmptyResultsState from './EmptyResultsState';
@@ -56,25 +56,47 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
 
     setLoading(true);
     try {
-      // Buscar o resultado baseado na data do sorteio do bolão
-      console.log('Buscando resultado para a data do bolão:', pool.drawDate);
-      const apiResponse = await fetchLatestLotteryResult(pool.lotteryType as LotteryType);
-      const lotteryResult = convertApiResponseToLotteryResult(apiResponse);
+      // Converter a data do bolão para o formato esperado pela API
+      const poolDate = new Date(pool.drawDate);
+      const targetDate = poolDate.toISOString().split('T')[0]; // YYYY-MM-DD
       
-      // Verificar se o resultado corresponde à data do bolão
-      const poolDrawDate = new Date(pool.drawDate);
-      const resultDrawDate = new Date(lotteryResult.drawDate);
+      console.log('Buscando resultado para a data específica do bolão:', targetDate);
       
-      console.log('Data do bolão:', poolDrawDate.toDateString());
-      console.log('Data do resultado da API:', resultDrawDate.toDateString());
+      let apiResponse;
+      let lotteryResult;
       
-      // Se as datas não correspondem, mostrar aviso
-      if (poolDrawDate.toDateString() !== resultDrawDate.toDateString()) {
+      try {
+        // Tenta buscar o resultado pela data específica
+        apiResponse = await fetchLotteryResultByDate(pool.lotteryType as LotteryType, targetDate);
+        lotteryResult = convertApiResponseToLotteryResult(apiResponse);
+        
         toast({
-          title: "Atenção: Data do sorteio não corresponde",
-          description: `O bolão está configurado para ${poolDrawDate.toLocaleDateString('pt-BR')} mas o resultado disponível é de ${resultDrawDate.toLocaleDateString('pt-BR')}. Verifique se há um resultado específico para a data do seu bolão.`,
-          variant: "default",
+          title: "Resultado encontrado!",
+          description: `Resultado do sorteio de ${new Date(lotteryResult.drawDate).toLocaleDateString('pt-BR')} encontrado.`,
         });
+        
+      } catch (dateError) {
+        console.log('Erro ao buscar por data específica, tentando último resultado:', dateError);
+        
+        // Se não conseguir buscar pela data específica, busca o último resultado
+        apiResponse = await fetchLatestLotteryResult(pool.lotteryType as LotteryType);
+        lotteryResult = convertApiResponseToLotteryResult(apiResponse);
+        
+        // Verificar se o resultado corresponde à data do bolão
+        const poolDrawDate = new Date(pool.drawDate);
+        const resultDrawDate = new Date(lotteryResult.drawDate);
+        
+        console.log('Data do bolão:', poolDrawDate.toDateString());
+        console.log('Data do resultado da API:', resultDrawDate.toDateString());
+        
+        // Mostrar aviso se as datas não correspondem
+        if (poolDrawDate.toDateString() !== resultDrawDate.toDateString()) {
+          toast({
+            title: "Atenção: Data do sorteio não corresponde",
+            description: `O bolão está configurado para ${poolDrawDate.toLocaleDateString('pt-BR')} mas o resultado disponível é de ${resultDrawDate.toLocaleDateString('pt-BR')}. Os bilhetes foram verificados contra o último resultado disponível.`,
+            variant: "default",
+          });
+        }
       }
       
       // Verificar cada bilhete contra o resultado
@@ -153,12 +175,21 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
       });
 
     } catch (error: any) {
+      console.error('Erro ao buscar resultados:', error);
+      
+      let errorMessage = "Não foi possível obter os resultados da loteria.";
+      
+      if (error.message.includes('Failed to fetch')) {
+        errorMessage = "Erro de conexão com o serviço de resultados. Verifique sua conexão com a internet e tente novamente.";
+      } else if (error.message.includes('Nenhum resultado encontrado')) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erro ao verificar resultados",
-        description: "Não foi possível obter os resultados da loteria. Tente novamente mais tarde.",
+        description: errorMessage,
         variant: "destructive",
       });
-      console.error('Erro ao buscar resultados:', error);
     } finally {
       setLoading(false);
     }

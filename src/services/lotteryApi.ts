@@ -76,7 +76,7 @@ export async function fetchLatestLotteryResult(lotteryType: LotteryType): Promis
 }
 
 /**
- * Busca resultado de loteria por data
+ * Busca resultado de loteria por data específica
  * @param lotteryType - Tipo de loteria
  * @param targetDate - Data alvo no formato YYYY-MM-DD
  * @returns Os dados do resultado do sorteio da data especificada
@@ -85,11 +85,9 @@ export async function fetchLotteryResultByDate(lotteryType: LotteryType, targetD
   const apiLotteryName = lotteryTypeMapping[lotteryType];
   
   try {
-    // A API da Caixa não tem endpoint por data, então vamos buscar o último resultado
-    // e verificar se corresponde à data desejada. Em uma implementação real,
-    // você precisaria de uma API que permita busca por data específica
     console.log(`Buscando resultado de ${apiLotteryName} para a data: ${targetDate}`);
     
+    // Primeiro, tenta buscar o último resultado para verificar se corresponde à data
     const response = await fetch(`https://loteriascaixa-api.herokuapp.com/api/${apiLotteryName}/latest`);
     
     if (!response.ok) {
@@ -105,11 +103,40 @@ export async function fetchLotteryResultByDate(lotteryType: LotteryType, targetD
     
     console.log(`Data do resultado da API: ${apiDateFormatted}, Data solicitada: ${targetDate}`);
     
-    return data;
+    // Se as datas correspondem, retorna o resultado
+    if (apiDateFormatted === targetDate) {
+      return data;
+    }
+    
+    // Se não corresponde, tenta buscar por número de concurso estimado
+    // Como não temos um endpoint por data específica, isso é uma limitação da API
+    throw new Error(`Nenhum resultado encontrado para a data ${targetDate}. Último resultado disponível é de ${resultDate}.`);
+    
   } catch (error) {
     console.error('Erro ao buscar resultado por data:', error);
     throw error;
   }
+}
+
+/**
+ * Estima o número do concurso baseado na data
+ * Esta é uma função auxiliar que pode ser melhorada com dados mais precisos
+ */
+function estimateDrawNumberByDate(lotteryType: LotteryType, targetDate: string): string {
+  // Esta é uma estimativa simples. Em um sistema real, você teria
+  // um banco de dados com o histórico de concursos e suas datas
+  const baseDate = new Date('2024-01-01');
+  const target = new Date(targetDate);
+  const daysDiff = Math.floor((target.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24));
+  
+  // Megasena: sorteios às quartas e sábados (2 por semana)
+  if (lotteryType === 'megasena') {
+    const weeksFromBase = Math.floor(daysDiff / 7);
+    return String(2700 + (weeksFromBase * 2)); // Número base estimado
+  }
+  
+  // Para outros tipos, retorna um número estimado
+  return String(Math.floor(daysDiff / 3) + 1000);
 }
 
 /**
