@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,28 +37,6 @@ type PoolResultsProps = {
   tickets: Ticket[];
 };
 
-// Função para gerar números sorteados simulados
-const generateMockDrawNumbers = (lotteryType: LotteryType): number[] => {
-  const ranges = {
-    megasena: { min: 1, max: 60, count: 6 },
-    lotofacil: { min: 1, max: 25, count: 15 },
-    quina: { min: 1, max: 80, count: 5 },
-    lotomania: { min: 0, max: 99, count: 20 },
-    timemania: { min: 1, max: 80, count: 10 },
-    duplasena: { min: 1, max: 50, count: 6 }
-  };
-
-  const config = ranges[lotteryType];
-  const numbers = new Set<number>();
-  
-  while (numbers.size < config.count) {
-    const num = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
-    numbers.add(num);
-  }
-  
-  return Array.from(numbers).sort((a, b) => a - b);
-};
-
 export default function PoolResults({ pool, tickets }: PoolResultsProps) {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<TicketResult[]>([]);
@@ -79,28 +56,9 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
 
     setLoading(true);
     try {
-      let lotteryResult;
-      
-      try {
-        // Tentar buscar o resultado real da API
-        const apiResponse = await fetchLatestLotteryResult(pool.lotteryType as LotteryType);
-        lotteryResult = convertApiResponseToLotteryResult(apiResponse);
-      } catch (apiError) {
-        // Se a API falhar, usar dados simulados
-        console.log('API indisponível, usando dados simulados:', apiError);
-        
-        lotteryResult = {
-          numbers: generateMockDrawNumbers(pool.lotteryType as LotteryType),
-          drawNumber: '2024-DEMO',
-          date: new Date().toISOString()
-        };
-
-        toast({
-          title: "Usando dados simulados",
-          description: "A API da Caixa está indisponível. Usando números sorteados simulados para demonstração.",
-          variant: "default",
-        });
-      }
+      // Buscar o último resultado real da API
+      const apiResponse = await fetchLatestLotteryResult(pool.lotteryType as LotteryType);
+      const lotteryResult = convertApiResponseToLotteryResult(apiResponse);
       
       // Verificar cada bilhete contra o resultado
       const ticketResults: TicketResult[] = tickets.map(ticket => {
@@ -180,9 +138,10 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
     } catch (error: any) {
       toast({
         title: "Erro ao verificar resultados",
-        description: error.message,
+        description: "Não foi possível obter os resultados da loteria. Tente novamente mais tarde.",
         variant: "destructive",
       });
+      console.error('Erro ao buscar resultados:', error);
     } finally {
       setLoading(false);
     }
