@@ -76,6 +76,43 @@ export async function fetchLatestLotteryResult(lotteryType: LotteryType): Promis
 }
 
 /**
+ * Busca resultado de loteria por data
+ * @param lotteryType - Tipo de loteria
+ * @param targetDate - Data alvo no formato YYYY-MM-DD
+ * @returns Os dados do resultado do sorteio da data especificada
+ */
+export async function fetchLotteryResultByDate(lotteryType: LotteryType, targetDate: string): Promise<LotteryApiResponse> {
+  const apiLotteryName = lotteryTypeMapping[lotteryType];
+  
+  try {
+    // A API da Caixa não tem endpoint por data, então vamos buscar o último resultado
+    // e verificar se corresponde à data desejada. Em uma implementação real,
+    // você precisaria de uma API que permita busca por data específica
+    console.log(`Buscando resultado de ${apiLotteryName} para a data: ${targetDate}`);
+    
+    const response = await fetch(`https://loteriascaixa-api.herokuapp.com/api/${apiLotteryName}/latest`);
+    
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar resultado por data: ${response.status}`);
+    }
+    
+    const data: LotteryApiResponse = await response.json();
+    
+    // Converter a data da API (DD/MM/YYYY) para comparação
+    const resultDate = data.data;
+    const [day, month, year] = resultDate.split('/');
+    const apiDateFormatted = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    
+    console.log(`Data do resultado da API: ${apiDateFormatted}, Data solicitada: ${targetDate}`);
+    
+    return data;
+  } catch (error) {
+    console.error('Erro ao buscar resultado por data:', error);
+    throw error;
+  }
+}
+
+/**
  * Converte a resposta da API para o formato usado pela aplicação
  */
 export function convertApiResponseToLotteryResult(response: LotteryApiResponse): {

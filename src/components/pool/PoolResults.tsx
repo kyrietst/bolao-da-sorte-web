@@ -56,9 +56,26 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
 
     setLoading(true);
     try {
-      // Buscar o último resultado real da API
+      // Buscar o resultado baseado na data do sorteio do bolão
+      console.log('Buscando resultado para a data do bolão:', pool.drawDate);
       const apiResponse = await fetchLatestLotteryResult(pool.lotteryType as LotteryType);
       const lotteryResult = convertApiResponseToLotteryResult(apiResponse);
+      
+      // Verificar se o resultado corresponde à data do bolão
+      const poolDrawDate = new Date(pool.drawDate);
+      const resultDrawDate = new Date(lotteryResult.drawDate);
+      
+      console.log('Data do bolão:', poolDrawDate.toDateString());
+      console.log('Data do resultado da API:', resultDrawDate.toDateString());
+      
+      // Se as datas não correspondem, mostrar aviso
+      if (poolDrawDate.toDateString() !== resultDrawDate.toDateString()) {
+        toast({
+          title: "Atenção: Data do sorteio não corresponde",
+          description: `O bolão está configurado para ${poolDrawDate.toLocaleDateString('pt-BR')} mas o resultado disponível é de ${resultDrawDate.toLocaleDateString('pt-BR')}. Verifique se há um resultado específico para a data do seu bolão.`,
+          variant: "default",
+        });
+      }
       
       // Verificar cada bilhete contra o resultado
       const ticketResults: TicketResult[] = tickets.map(ticket => {
@@ -175,7 +192,7 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
         <div>
           <h3 className="text-xl font-bold">Resultados - {pool.name}</h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Verificação de bilhetes contra o último sorteio
+            Verificação de bilhetes para o sorteio de {new Date(pool.drawDate).toLocaleDateString('pt-BR')}
           </p>
         </div>
         <Button 
