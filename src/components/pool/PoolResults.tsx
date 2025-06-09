@@ -1,16 +1,15 @@
-
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pool, Ticket, LotteryType } from '@/types';
-import { fetchLotteryResultByDate, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
+import { fetchLotteryResultByDate, convertApiResponseToLotteryResult, testApiConnection } from '@/services/lotteryApi';
 import { useToast } from '@/hooks/use-toast';
 import DrawnNumbersDisplay from './DrawnNumbersDisplay';
 import EmptyResultsState from './EmptyResultsState';
 import CompactTicketResult from './CompactTicketResult';
 import EnhancedResultsStats from './EnhancedResultsStats';
-import { Filter, AlertCircle, Wifi, WifiOff } from 'lucide-react';
+import { Filter, AlertCircle, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 
 type GameResult = {
   gameNumbers: number[];
@@ -46,6 +45,7 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
   const [stats, setStats] = useState<ResultStats | null>(null);
   const [sortBy, setSortBy] = useState<'hits' | 'prize' | 'ticket'>('hits');
   const [retryCount, setRetryCount] = useState(0);
+  const [connectionStatus, setConnectionStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown');
   const { toast } = useToast();
 
   const checkResults = async () => {
@@ -63,20 +63,31 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
     
     try {
       console.log('=== INICIANDO VERIFICAÇÃO DE RESULTADOS ===');
-      console.log('Pool:', pool.name);
-      console.log('Data do sorteio:', pool.drawDate);
-      console.log('Tipo de loteria:', pool.lotteryType);
-      console.log('Tentativa número:', retryCount + 1);
+      console.log('Pool:', { 
+        name: pool.name, 
+        drawDate: pool.drawDate, 
+        lotteryType: pool.lotteryType,
+        ticketsCount: tickets.length 
+      });
+      
+      // Testar conectividade primeiro
+      console.log('🧪 Testando conectividade...');
+      const isConnected = await testApiConnection();
+      setConnectionStatus(isConnected ? 'connected' : 'disconnected');
+      
+      if (!isConnected) {
+        throw new Error('Não foi possível conectar com o serviço da API. Verifique sua conexão com a internet.');
+      }
 
       // Converter a data do bolão para o formato esperado pela API
       const poolDate = new Date(pool.drawDate);
       const targetDate = poolDate.toISOString().split('T')[0]; // YYYY-MM-DD
       
-      console.log('Data alvo formatada:', targetDate);
+      console.log(`📅 Data alvo formatada: ${targetDate}`);
       
       toast({
-        title: "🔍 Buscando resultados...",
-        description: `Consultando resultado para ${poolDate.toLocaleDateString('pt-BR')}`,
+        title: "🔍 Consultando resultados...",
+        description: `Buscando resultado para ${poolDate.toLocaleDateString('pt-BR')}`,
       });
 
       // Buscar resultado pela data específica
@@ -87,6 +98,12 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
       const poolDrawDate = new Date(pool.drawDate);
       const resultDrawDate = new Date(lotteryResult.drawDate);
       const isExactDateMatch = poolDrawDate.toDateString() === resultDrawDate.toDateString();
+      
+      console.log('📊 Comparação de datas:', {
+        poolDate: poolDrawDate.toDateString(),
+        resultDate: resultDrawDate.toDateString(),
+        isExactMatch: isExactDateMatch
+      });
       
       if (isExactDateMatch) {
         toast({
@@ -100,12 +117,12 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
           variant: "default",
         });
       }
-      
-      console.log('Resultado obtido:', lotteryResult);
 
       // Verificar cada bilhete contra o resultado
-      console.log('Iniciando verificação de bilhetes...');
-      const ticketResults: TicketResult[] = tickets.map(ticket => {
+      console.log('🎫 Iniciando verificação de bilhetes...');
+      const ticketResults: TicketResult[] = tickets.map((ticket, index) => {
+        console.log(`🔍 Verificando bilhete ${index + 1}/${tickets.length}: ${ticket.ticketNumber}`);
+        
         const gamesPerTicket = 10;
         const numbersPerGame = 6;
         const games = [];
@@ -122,10 +139,13 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
           }
         }
 
-        const gameResults: GameResult[] = games.map(gameNumbers => {
+        const gameResults: GameResult[] = games.map((gameNumbers, gameIndex) => {
           const matchedNumbers = gameNumbers.filter(num => 
             lotteryResult.numbers.includes(num)
           );
+          
+          console.log(`  Volante ${gameIndex + 1}: ${gameNumbers.join(',')} → ${matchedNumbers.length} acertos`);
+          
           return {
             gameNumbers,
             hits: matchedNumbers.length,
@@ -174,7 +194,13 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
         resultDate: lotteryResult.drawDate
       });
 
-      console.log('Verificação concluída com sucesso!');
+      console.log('✅ Verificação concluída com sucesso!', {
+        totalTickets: ticketResults.length,
+        maxHits,
+        prizeWinners,
+        totalPrize
+      });
+      
       toast({
         title: "✅ Verificação concluída!",
         description: `${ticketResults.length} bilhetes verificados contra o concurso ${lotteryResult.drawNumber}`,
@@ -182,21 +208,27 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
 
     } catch (error: any) {
       console.error('=== ERRO NA VERIFICAÇÃO ===');
-      console.error('Erro completo:', error);
+      console.error('Tipo do erro:', error.name);
       console.error('Mensagem:', error.message);
+      console.error('Stack trace:', error.stack);
+      
+      setConnectionStatus('disconnected');
       
       let errorTitle = "Erro ao verificar resultados";
       let errorMessage = "Não foi possível obter os resultados da loteria.";
       
-      if (error.message.includes('Failed to fetch') || error.message.includes('Falha ao conectar')) {
+      if (error.message.includes('Failed to fetch') || error.message.includes('Falha ao conectar') || error.message.includes('conectar com o serviço')) {
         errorTitle = "Erro de conexão";
         errorMessage = "Problemas de conectividade com o serviço de resultados. Verifique sua conexão e tente novamente.";
-      } else if (error.message.includes('não encontrado')) {
+      } else if (error.message.includes('não encontrado') || error.message.includes('404')) {
         errorTitle = "Resultado não encontrado";
-        errorMessage = error.message;
-      } else if (error.message.includes('timeout')) {
+        errorMessage = `Resultado não encontrado para ${pool.lotteryType}. Verifique se o sorteio já ocorreu.`;
+      } else if (error.message.includes('timeout') || error.message.includes('AbortError')) {
         errorTitle = "Tempo esgotado";
-        errorMessage = "A requisição demorou muito para responder. Tente novamente.";
+        errorMessage = "A consulta demorou muito para responder. Tente novamente.";
+      } else if (error.message.includes('JSON') || error.message.includes('parse')) {
+        errorTitle = "Erro nos dados";
+        errorMessage = "Resposta inválida do serviço. Tente novamente em alguns instantes.";
       }
       
       toast({
@@ -239,14 +271,26 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
           <p className="text-sm text-muted-foreground mt-1">
             Verificação de bilhetes para o sorteio de {new Date(pool.drawDate).toLocaleDateString('pt-BR')}
           </p>
-          {retryCount > 0 && (
-            <div className="flex items-center gap-2 mt-2">
-              <AlertCircle className="h-4 w-4 text-orange-500" />
-              <span className="text-xs text-orange-600">
-                Tentativa {retryCount} • Consultando API da Caixa
+          <div className="flex items-center gap-4 mt-2">
+            {retryCount > 0 && (
+              <div className="flex items-center gap-2">
+                <RefreshCw className="h-4 w-4 text-blue-500" />
+                <span className="text-xs text-blue-600">
+                  Tentativa {retryCount}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              {connectionStatus === 'connected' && <Wifi className="h-4 w-4 text-green-500" />}
+              {connectionStatus === 'disconnected' && <WifiOff className="h-4 w-4 text-red-500" />}
+              {connectionStatus === 'unknown' && <AlertCircle className="h-4 w-4 text-gray-500" />}
+              <span className="text-xs text-muted-foreground">
+                {connectionStatus === 'connected' && 'Conectado à API'}
+                {connectionStatus === 'disconnected' && 'Desconectado'}
+                {connectionStatus === 'unknown' && 'Status desconhecido'}
               </span>
             </div>
-          )}
+          </div>
         </div>
         <Button 
           onClick={checkResults} 
@@ -256,7 +300,7 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
         >
           {loading ? (
             <div className="flex items-center gap-2">
-              <WifiOff className="h-4 w-4 animate-spin" />
+              <RefreshCw className="h-4 w-4 animate-spin" />
               Verificando...
             </div>
           ) : (
