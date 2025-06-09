@@ -11,21 +11,41 @@ const lotteryTypeMapping: Record<LotteryType, string> = {
   duplasena: 'duplasena',
 };
 
-// Tipo para a resposta da API
+// Tipo para a resposta da API - corrigido para corresponder à estrutura real
 export interface LotteryApiResponse {
   loteria: string;
-  concurso: string;
+  concurso: number;
   data: string;
+  local: string;
+  dezenasOrdemSorteio: string[];
   dezenas: string[];
+  trevos?: string[];
+  timeCoracao?: string | null;
+  mesSorte?: string | null;
   premiacoes: {
-    acertos: string;
-    vencedores: number;
-    premio: string;
+    descricao: string;
+    faixa: number;
+    ganhadores: number;
+    valorPremio: number;
   }[];
+  estadosPremiados: any[];
+  observacao: string;
   acumulou: boolean;
-  acumuladaProxConcurso?: string;
-  dataProxConcurso: string;
-  proxConcurso: string;
+  proximoConcurso: number;
+  dataProximoConcurso: string;
+  localGanhadores: {
+    ganhadores: number;
+    municipio: string;
+    nomeFatansiaUL: string;
+    serie: string;
+    posicao: number;
+    uf: string;
+  }[];
+  valorArrecadado: number;
+  valorAcumuladoConcurso_0_5: number;
+  valorAcumuladoConcursoEspecial: number;
+  valorAcumuladoProximoConcurso: number;
+  valorEstimadoProximoConcurso: number;
 }
 
 // URL correta da API baseada na documentação
@@ -143,32 +163,36 @@ export function convertApiResponseToLotteryResult(response: LotteryApiResponse):
     prize: string;
   }>;
 } {
-  // Encontra o número total de ganhadores (soma de todas as categorias)
-  const totalWinners = response.premiacoes.reduce((sum, prize) => sum + prize.vencedores, 0);
+  // Calcula o número total de ganhadores da faixa principal (6 acertos para Mega-Sena)
+  const mainPrize = response.premiacoes.find(p => p.faixa === 1);
+  const totalWinners = mainPrize ? mainPrize.ganhadores : 0;
   
   // Converte as dezenas de string para número
   const numbers = response.dezenas.map(num => parseInt(num, 10));
   
   // Converte o formato de data para o formato usado pela aplicação (YYYY-MM-DD)
   const dateParts = response.data.split('/');
-  const formattedDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+  const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
   
   // Determina o tipo de loteria baseado no nome da API
   const lotteryType = Object.entries(lotteryTypeMapping)
     .find(([_, apiName]) => apiName === response.loteria)?.[0] as LotteryType;
   
   return {
-    id: response.concurso,
+    id: response.concurso.toString(),
     lotteryType,
-    drawNumber: response.concurso,
+    drawNumber: response.concurso.toString(),
     drawDate: formattedDate,
     numbers,
     winners: totalWinners,
     accumulated: response.acumulou,
     prizes: response.premiacoes.map(prize => ({
-      hits: prize.acertos,
-      winners: prize.vencedores,
-      prize: prize.premio
+      hits: prize.descricao,
+      winners: prize.ganhadores,
+      prize: new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(prize.valorPremio)
     }))
   };
 }

@@ -28,7 +28,7 @@ const mockResults: LotteryResult[] = [
     drawDate: '2024-01-10',
     numbers: [1, 2, 3, 4, 5, 10],
     winners: 0,
-    accumulated: false,  // Added the missing accumulated property
+    accumulated: false,
   },
   {
     id: '3',
@@ -77,6 +77,7 @@ export default function SearchResults() {
       if (!selectedLottery || !drawNumber) {
         return null;
       }
+      console.log(`Buscando resultado para ${selectedLottery} concurso ${drawNumber}`);
       const apiResponse = await fetchLotteryResult(selectedLottery as LotteryType, drawNumber);
       return convertApiResponseToLotteryResult(apiResponse);
     },
@@ -98,26 +99,41 @@ export default function SearchResults() {
     setIsSearching(true);
     
     try {
+      console.log('Iniciando busca...');
       const result = await refetch();
       
       if (result.error) {
+        console.error('Erro na busca:', result.error);
         throw result.error;
       }
       
       if (result.data) {
+        console.log('Resultado encontrado:', result.data);
         // Se encontrou um resultado, atualiza a lista de resultados
         setResults([result.data]);
-        toast.success(`Resultado do concurso ${drawNumber} encontrado`);
+        toast.success(`Resultado do concurso ${drawNumber} encontrado com sucesso!`);
       } else {
         // Se não encontrou nenhum resultado, mostra uma lista vazia
         setResults([]);
         toast.error(`Nenhum resultado encontrado para o concurso ${drawNumber}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao buscar resultado:', error);
-      toast.error('Ocorreu um erro ao buscar o resultado. Usando dados locais.');
       
-      // Em caso de erro, filtra os resultados do mock
+      // Mensagens de erro mais específicas
+      let errorMessage = 'Ocorreu um erro ao buscar o resultado.';
+      
+      if (error.message.includes('Failed to fetch') || error.message.includes('Falha ao conectar')) {
+        errorMessage = 'Erro de conexão com o serviço de resultados. Verifique sua conexão.';
+      } else if (error.message.includes('404')) {
+        errorMessage = `Concurso ${drawNumber} não encontrado para ${selectedLottery}.`;
+      } else if (error.message.includes('timeout')) {
+        errorMessage = 'Tempo limite excedido. Tente novamente.';
+      }
+      
+      toast.error(errorMessage);
+      
+      // Em caso de erro, filtra os resultados do mock se necessário
       let filtered = mockResults;
       
       if (selectedLottery) {
@@ -129,6 +145,10 @@ export default function SearchResults() {
       }
       
       setResults(filtered);
+      
+      if (filtered.length > 0) {
+        toast.info('Exibindo resultados de exemplo enquanto a API está indisponível.');
+      }
     } finally {
       setIsSearching(false);
     }
@@ -170,21 +190,26 @@ export default function SearchResults() {
               placeholder="Número do concurso"
               value={drawNumber}
               onChange={(e) => setDrawNumber(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleSearch();
+                }
+              }}
             />
           </div>
           
           <Button onClick={handleSearch} disabled={isLoading || isSearching}>
-            {isLoading ? 'Buscando...' : 'Buscar'}
+            {isLoading || isSearching ? 'Buscando...' : 'Buscar'}
           </Button>
         </div>
         
-        {isLoading && (
+        {(isLoading || isSearching) && (
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-primary"></div>
           </div>
         )}
         
-        {!isLoading && results.length > 0 && (
+        {!isLoading && !isSearching && results.length > 0 && (
           <div className="grid gap-6 md:grid-cols-3">
             {results.map((result) => (
               <LotteryResultCard key={result.id} result={result} />
@@ -192,7 +217,7 @@ export default function SearchResults() {
           </div>
         )}
         
-        {!isLoading && results.length === 0 && (
+        {!isLoading && !isSearching && results.length === 0 && (
           <div className="bg-card border border-border rounded-lg p-10 text-center">
             <p className="text-muted-foreground">
               Nenhum resultado encontrado com os critérios especificados.
