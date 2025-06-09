@@ -1,9 +1,10 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pool, Ticket, LotteryType } from '@/types';
-import { fetchLotteryResultByDate, fetchLatestLotteryResult, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
+import { fetchLotteryResultByDate, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
 import { useToast } from '@/hooks/use-toast';
 import DrawnNumbersDisplay from './DrawnNumbersDisplay';
 import EmptyResultsState from './EmptyResultsState';
@@ -30,6 +31,8 @@ type ResultStats = {
   totalPrize: number;
   drawNumbers: number[];
   drawNumber: string;
+  isExactDateMatch: boolean;
+  resultDate: string;
 };
 
 type PoolResultsProps = {
@@ -72,64 +75,30 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
       console.log('Data alvo formatada:', targetDate);
       
       toast({
-        title: "Conectando com a API...",
-        description: `Buscando resultado para ${poolDate.toLocaleDateString('pt-BR')}`,
+        title: "🔍 Buscando resultados...",
+        description: `Consultando resultado para ${poolDate.toLocaleDateString('pt-BR')}`,
       });
 
-      let apiResponse;
-      let lotteryResult;
-      let isExactDateMatch = false;
+      // Buscar resultado pela data específica
+      const apiResponse = await fetchLotteryResultByDate(pool.lotteryType as LotteryType, targetDate);
+      const lotteryResult = convertApiResponseToLotteryResult(apiResponse);
       
-      try {
-        // Tenta buscar o resultado pela data específica
-        console.log('Tentando buscar resultado por data específica...');
-        apiResponse = await fetchLotteryResultByDate(pool.lotteryType as LotteryType, targetDate);
-        lotteryResult = convertApiResponseToLotteryResult(apiResponse);
-        
-        // Verifica se as datas são exatamente iguais
-        const poolDrawDate = new Date(pool.drawDate);
-        const resultDrawDate = new Date(lotteryResult.drawDate);
-        isExactDateMatch = poolDrawDate.toDateString() === resultDrawDate.toDateString();
-        
-        if (isExactDateMatch) {
-          toast({
-            title: "✅ Resultado encontrado!",
-            description: `Resultado oficial do sorteio de ${resultDrawDate.toLocaleDateString('pt-BR')} carregado com sucesso.`,
-          });
-        } else {
-          toast({
-            title: "⚠️ Data não corresponde",
-            description: `Bolão configurado para ${poolDrawDate.toLocaleDateString('pt-BR')}, mas o resultado disponível é de ${resultDrawDate.toLocaleDateString('pt-BR')}.`,
-            variant: "default",
-          });
-        }
-        
-      } catch (dateError: any) {
-        console.log('Erro ao buscar por data específica:', dateError.message);
-        
-        // Se não conseguir buscar pela data específica, busca o último resultado
+      // Verificar se as datas correspondem exatamente
+      const poolDrawDate = new Date(pool.drawDate);
+      const resultDrawDate = new Date(lotteryResult.drawDate);
+      const isExactDateMatch = poolDrawDate.toDateString() === resultDrawDate.toDateString();
+      
+      if (isExactDateMatch) {
         toast({
-          title: "Buscando último resultado...",
-          description: "Não foi possível encontrar resultado para a data específica.",
+          title: "✅ Resultado encontrado!",
+          description: `Concurso ${lotteryResult.drawNumber} de ${resultDrawDate.toLocaleDateString('pt-BR')} carregado com sucesso.`,
         });
-        
-        try {
-          console.log('Tentando buscar último resultado disponível...');
-          apiResponse = await fetchLatestLotteryResult(pool.lotteryType as LotteryType);
-          lotteryResult = convertApiResponseToLotteryResult(apiResponse);
-          
-          const poolDrawDate = new Date(pool.drawDate);
-          const resultDrawDate = new Date(lotteryResult.drawDate);
-          
-          toast({
-            title: "⚠️ Usando último resultado disponível",
-            description: `Bolão: ${poolDrawDate.toLocaleDateString('pt-BR')} → Resultado: ${resultDrawDate.toLocaleDateString('pt-BR')}`,
-            variant: "default",
-          });
-          
-        } catch (latestError: any) {
-          throw new Error(`Falha ao buscar resultados: ${latestError.message}`);
-        }
+      } else {
+        toast({
+          title: "⚠️ Usando resultado mais recente",
+          description: `Resultado do concurso ${lotteryResult.drawNumber} de ${resultDrawDate.toLocaleDateString('pt-BR')} (bolão configurado para ${poolDrawDate.toLocaleDateString('pt-BR')}).`,
+          variant: "default",
+        });
       }
       
       console.log('Resultado obtido:', lotteryResult);
@@ -200,7 +169,9 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
         prizeWinners,
         totalPrize,
         drawNumbers: lotteryResult.numbers,
-        drawNumber: lotteryResult.drawNumber
+        drawNumber: lotteryResult.drawNumber,
+        isExactDateMatch,
+        resultDate: lotteryResult.drawDate
       });
 
       console.log('Verificação concluída com sucesso!');
@@ -272,7 +243,7 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
             <div className="flex items-center gap-2 mt-2">
               <AlertCircle className="h-4 w-4 text-orange-500" />
               <span className="text-xs text-orange-600">
-                Tentativa {retryCount} • Problemas de conectividade detectados
+                Tentativa {retryCount} • Consultando API da Caixa
               </span>
             </div>
           )}
@@ -286,7 +257,7 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
           {loading ? (
             <div className="flex items-center gap-2">
               <WifiOff className="h-4 w-4 animate-spin" />
-              Conectando...
+              Verificando...
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -304,6 +275,21 @@ export default function PoolResults({ pool, tickets }: PoolResultsProps) {
             drawNumber={stats.drawNumber}
             lotteryType={pool.lotteryType as LotteryType}
           />
+
+          {!stats.isExactDateMatch && (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-orange-600" />
+                  <p className="text-sm text-orange-800">
+                    <strong>Atenção:</strong> Este bolão foi configurado para o sorteio de {new Date(pool.drawDate).toLocaleDateString('pt-BR')}, 
+                    mas o resultado exibido é do concurso {stats.drawNumber} de {new Date(stats.resultDate).toLocaleDateString('pt-BR')} 
+                    (último resultado disponível).
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <EnhancedResultsStats
             maxHits={stats.maxHits}
