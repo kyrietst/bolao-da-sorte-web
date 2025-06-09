@@ -48,85 +48,99 @@ export interface LotteryApiResponse {
   valorEstimadoProximoConcurso: number;
 }
 
-// URL correta da API conforme documentação
+// URL correta da API conforme documentação - sem /api no final
 const API_BASE_URL = 'https://loteriascaixa-api.herokuapp.com/api';
+
+// Proxy para contornar problemas de CORS
+const CORS_PROXY = 'https://cors-anywhere.herokuapp.com/';
 
 /**
  * Função auxiliar para fazer requisições com retry e melhor tratamento de erro
  */
-async function fetchWithRetry(endpoint: string, maxRetries: number = 3): Promise<LotteryApiResponse> {
+async function fetchWithRetry(endpoint: string, maxRetries: number = 2): Promise<LotteryApiResponse> {
   let lastError: Error;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      console.log(`🔍 Tentativa ${attempt + 1}/${maxRetries + 1} para: ${API_BASE_URL}${endpoint}`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
+  // Lista de URLs para tentar (com e sem proxy CORS)
+  const urlsToTry = [
+    `${API_BASE_URL}${endpoint}`,
+    `${CORS_PROXY}${API_BASE_URL}${endpoint}`
+  ];
 
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        signal: controller.signal,
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache',
-          'User-Agent': 'LotoBolao/1.0',
-        },
-        mode: 'cors',
-      });
+  for (let urlIndex = 0; urlIndex < urlsToTry.length; urlIndex++) {
+    const url = urlsToTry[urlIndex];
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔍 Tentativa ${attempt + 1}/${maxRetries + 1} para: ${url}`);
+        
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 segundos timeout
 
-      clearTimeout(timeoutId);
+        const response = await fetch(url, {
+          signal: controller.signal,
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            ...(url.includes('cors-anywhere') && {
+              'X-Requested-With': 'XMLHttpRequest'
+            })
+          },
+          mode: 'cors',
+        });
 
-      console.log(`📡 Status da resposta: ${response.status} ${response.statusText}`);
+        clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Erro desconhecido');
-        throw new Error(`HTTP ${response.status}: ${response.statusText}. Detalhes: ${errorText}`);
-      }
+        console.log(`📡 Status da resposta: ${response.status} ${response.statusText}`);
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        throw new Error(`Resposta não é JSON válido. Content-Type: ${contentType}`);
-      }
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => 'Erro desconhecido');
+          throw new Error(`HTTP ${response.status}: ${response.statusText}. Detalhes: ${errorText}`);
+        }
 
-      const data: LotteryApiResponse = await response.json();
-      console.log('✅ Resposta da API recebida:', { 
-        loteria: data.loteria, 
-        concurso: data.concurso, 
-        data: data.data,
-        dezenas: data.dezenas?.length || 0
-      });
-      
-      // Validar estrutura básica da resposta
-      if (!data.loteria || !data.concurso || !data.dezenas) {
-        throw new Error('Resposta da API incompleta ou inválida');
-      }
-      
-      return data;
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error(`Resposta não é JSON válido. Content-Type: ${contentType}`);
+        }
 
-    } catch (error: any) {
-      lastError = error;
-      console.error(`❌ Erro na tentativa ${attempt + 1}:`, {
-        message: error.message,
-        name: error.name,
-        stack: error.stack?.substring(0, 200)
-      });
-      
-      // Se for erro de abort (timeout), não vale a pena tentar novamente
-      if (error.name === 'AbortError') {
-        console.log('⏰ Timeout detectado, não tentando novamente');
-        break;
-      }
-      
-      if (attempt < maxRetries) {
-        const waitTime = Math.min(1000 * Math.pow(2, attempt), 5000); // Backoff exponencial limitado a 5s
-        console.log(`⏳ Aguardando ${waitTime}ms antes da próxima tentativa...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+        const data: LotteryApiResponse = await response.json();
+        console.log('✅ Resposta da API recebida:', { 
+          loteria: data.loteria, 
+          concurso: data.concurso, 
+          data: data.data,
+          dezenas: data.dezenas?.length || 0
+        });
+        
+        // Validar estrutura básica da resposta
+        if (!data.loteria || !data.concurso || !data.dezenas) {
+          throw new Error('Resposta da API incompleta ou inválida');
+        }
+        
+        return data;
+
+      } catch (error: any) {
+        lastError = error;
+        console.error(`❌ Erro na tentativa ${attempt + 1} com URL ${url}:`, {
+          message: error.message,
+          name: error.name
+        });
+        
+        // Se for erro de abort (timeout), tentar próxima URL
+        if (error.name === 'AbortError') {
+          console.log('⏰ Timeout detectado, tentando próxima URL...');
+          break;
+        }
+        
+        if (attempt < maxRetries) {
+          const waitTime = Math.min(1000 * Math.pow(2, attempt), 3000); // Backoff exponencial limitado a 3s
+          console.log(`⏳ Aguardando ${waitTime}ms antes da próxima tentativa...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        }
       }
     }
   }
 
-  const finalError = new Error(`Falha ao conectar com a API após ${maxRetries + 1} tentativas. Último erro: ${lastError.message}`);
+  const finalError = new Error(`Falha ao conectar com a API após ${maxRetries + 1} tentativas em ${urlsToTry.length} URLs. Último erro: ${lastError.message}`);
   console.error('🚨 Erro final:', finalError.message);
   throw finalError;
 }
@@ -137,16 +151,35 @@ async function fetchWithRetry(endpoint: string, maxRetries: number = 3): Promise
 export async function testApiConnection(): Promise<boolean> {
   try {
     console.log('🧪 Testando conectividade com a API...');
-    const response = await fetch(API_BASE_URL.replace('/api', ''), {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(10000)
-    });
     
-    console.log(`🌐 Teste de conectividade: ${response.status}`);
-    return response.ok;
+    // Testar endpoint simples primeiro
+    const testUrls = [
+      'https://loteriascaixa-api.herokuapp.com/api/megasena/latest',
+      'https://cors-anywhere.herokuapp.com/https://loteriascaixa-api.herokuapp.com/api/megasena/latest'
+    ];
+
+    for (const url of testUrls) {
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(10000),
+          mode: 'cors'
+        });
+        
+        console.log(`🌐 Teste de conectividade para ${url}: ${response.status}`);
+        if (response.ok) {
+          return true;
+        }
+      } catch (error) {
+        console.log(`❌ Teste falhou para ${url}:`, error);
+        continue;
+      }
+    }
+    
+    return false;
   } catch (error) {
-    console.error('❌ Teste de conectividade falhou:', error);
+    console.error('❌ Teste de conectividade falhou completamente:', error);
     return false;
   }
 }
