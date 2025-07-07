@@ -117,6 +117,8 @@ export default function PoolDetail() {
                     ticket={ticket} 
                     gamesPerTicket={10}
                     numbersPerGame={6}
+                    showResults={true}
+                    drawNumber="3213"
                   />
                 ))}
               </div>
