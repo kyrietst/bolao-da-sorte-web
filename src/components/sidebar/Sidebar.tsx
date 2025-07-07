@@ -1,7 +1,8 @@
 
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/features/auth/providers/AuthProvider';
+import { useProfile } from '@/features/auth/hooks/useProfile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,12 +12,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LogOut, User } from 'lucide-react';
 
-type SidebarLinkProps = {
+interface SidebarLinkProps {
   to: string;
   icon: React.ReactNode;
   label: string;
   active: boolean;
-};
+}
 
 const SidebarLink = ({ to, icon, label, active }: SidebarLinkProps) => {
   return (
@@ -33,10 +34,11 @@ const SidebarLink = ({ to, icon, label, active }: SidebarLinkProps) => {
   );
 };
 
-export default function Sidebar() {
+export function Sidebar({ className }: any) {
   const location = useLocation();
   const currentPath = location.pathname;
-  const { user, profile, signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const { profile } = useProfile();
 
   const handleSignOut = async () => {
     await signOut();

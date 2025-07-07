@@ -1,9 +1,19 @@
-export type User = {
-  id: string;
+// Branded types for type-safe IDs
+export type Brand<K, T> = K & { __brand: T };
+
+export type UserId = Brand<string, 'UserId'>;
+export type PoolId = Brand<string, 'PoolId'>;
+export type ParticipantId = Brand<string, 'ParticipantId'>;
+export type TicketId = Brand<string, 'TicketId'>;
+export type LotteryResultId = Brand<string, 'LotteryResultId'>;
+export type PrizeId = Brand<string, 'PrizeId'>;
+
+export interface User {
+  id: UserId;
   name: string;
   email: string;
   role: 'admin' | 'participant';
-};
+}
 
 export type LotteryType = 
   'megasena' | 
@@ -15,37 +25,37 @@ export type LotteryType =
 
 export type PaymentStatus = 'confirmado' | 'pago' | 'pendente' | 'ativo';
 
-export type Pool = {
-  id: string;
+export interface Pool {
+  id: PoolId;
   name: string;
   lotteryType: LotteryType;
   drawDate: string;
   numTickets: number;
   maxParticipants: number;
   contributionAmount: number;
-  adminId: string;
+  adminId: UserId;
   status: 'ativo' | 'finalizado';
   createdAt: string;
-};
+}
 
-export type Participant = {
-  id: string;
-  userId: string;
-  poolId: string;
+export interface Participant {
+  id: ParticipantId;
+  userId: UserId;
+  poolId: PoolId;
   name: string;
   email: string;
   status: PaymentStatus;
-};
+}
 
-export type Ticket = {
-  id: string;
-  poolId: string;
+export interface Ticket {
+  id: TicketId;
+  poolId: PoolId;
   ticketNumber: string;
   numbers: number[];
-};
+}
 
-export type LotteryResult = {
-  id: string;
+export interface LotteryResult {
+  id: LotteryResultId;
   lotteryType: LotteryType;
   drawNumber: string;
   drawDate: string;
@@ -57,50 +67,50 @@ export type LotteryResult = {
     winners: number;
     prize: string;
   }>;
-};
+}
 
-export type Prize = {
-  id: string;
-  poolId: string;
+export interface Prize {
+  id: PrizeId;
+  poolId: PoolId;
   totalAmount: number;
   distributionPerParticipant: number;
   distributed: boolean;
-};
+}
 
-export type Profile = {
-  id: string;
+export interface Profile {
+  id: UserId;
   name: string;
   email: string;
   created_at: string;
-};
+}
 
-export type SupabasePool = {
-  id: string;
+export interface SupabasePool {
+  id: PoolId;
   name: string;
-  lottery_type: LotteryType; // Corrigido para usar o tipo LotteryType em vez de string
+  lottery_type: LotteryType;
   draw_date: string;
   num_tickets: number;
   max_participants: number;
   contribution_amount: number;
-  admin_id: string;
+  admin_id: UserId;
   status: 'ativo' | 'finalizado';
   created_at: string;
-};
+}
 
-export type SupabaseParticipant = {
-  id: string;
-  user_id: string;
-  pool_id: string;
+export interface SupabaseParticipant {
+  id: ParticipantId;
+  user_id: UserId;
+  pool_id: PoolId;
   name: string;
   email: string;
   status: PaymentStatus;
   created_at: string;
-};
+}
 
-export type SupabaseTicket = {
-  id: string;
-  pool_id: string;
+export interface SupabaseTicket {
+  id: TicketId;
+  pool_id: PoolId;
   ticket_number: string;
   numbers: number[];
   created_at: string;
-};
+}

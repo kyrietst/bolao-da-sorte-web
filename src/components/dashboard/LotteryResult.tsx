@@ -5,9 +5,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp, Trophy } from 'lucide-react';
 
-type LotteryResultCardProps = {
+interface LotteryResultCardProps {
   result: LotteryResultType;
-};
+}
 
 const getLotteryName = (type: LotteryType): string => {
   const names: Record<LotteryType, string> = {

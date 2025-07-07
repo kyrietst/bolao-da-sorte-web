@@ -3,12 +3,10 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import { Session, User } from '@supabase/supabase-js';
 import { useToast } from '@/components/ui/use-toast';
-import { Profile } from '@/types';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  profile: Profile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
@@ -19,7 +17,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
-  profile: null,
   loading: true,
   signIn: async () => {},
   signUp: async () => {},
@@ -36,7 +33,6 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -46,50 +42,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
-        if (session?.user) {
-          setTimeout(() => {
-            fetchProfile(session.user.id);
-          }, 0);
-        } else {
-          setProfile(null);
-        }
       }
     );
 
-    // Verificar se há uma sessão existente
+    // Verificar se há uma sessão existente e definir o estado de loading
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
-      
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Erro ao buscar o perfil:', error);
-        return;
-      }
-
-      setProfile(data as Profile);
-    } catch (error) {
-      console.error('Erro ao buscar o perfil:', error);
-    }
-  };
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -109,10 +73,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         title: "Login realizado com sucesso",
         description: "Bem-vindo de volta!",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro inesperado.";
       toast({
         title: "Erro ao fazer login",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -146,10 +111,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         title: "Conta criada com sucesso",
         description: "Verifique seu email para confirmar sua conta.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro inesperado.";
       toast({
         title: "Erro ao criar conta",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -177,10 +143,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         title: "Email enviado com sucesso",
         description: "Verifique sua caixa de entrada para redefinir sua senha.",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro inesperado.";
       toast({
         title: "Erro ao enviar email",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -195,10 +162,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       toast({
         title: "Logout realizado com sucesso",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro inesperado.";
       toast({
         title: "Erro ao fazer logout",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -207,16 +175,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      session, 
-      user, 
-      profile,
-      loading, 
-      signIn, 
-      signUp, 
-      signOut,
-      resetPassword
-    }}>
+    <AuthContext.Provider value={{
+        session,
+        user,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+        resetPassword
+      }}>
       {children}
     </AuthContext.Provider>
   );

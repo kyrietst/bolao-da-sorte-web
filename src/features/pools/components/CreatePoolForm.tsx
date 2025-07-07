@@ -1,10 +1,6 @@
-
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { useCreatePool } from '@/features/pools/hooks/useCreatePool';
 import { LotteryType } from '@/types';
-import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -26,103 +22,25 @@ import {
 } from '@/components/ui/select';
 import { Loader2, Plus } from 'lucide-react';
 
-type CreatePoolFormProps = {
+interface CreatePoolFormProps {
   buttonVariant?: 'default' | 'outline' | 'secondary';
   buttonSize?: 'default' | 'sm' | 'lg';
   fullWidth?: boolean;
-};
+}
 
 export default function CreatePoolForm({
   buttonVariant = 'default',
   buttonSize = 'default',
   fullWidth = false,
 }: CreatePoolFormProps) {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [lotteryType, setLotteryType] = useState<LotteryType>('megasena');
-  const [drawDate, setDrawDate] = useState('');
-  const [numTickets, setNumTickets] = useState(1);
-  const [maxParticipants, setMaxParticipants] = useState(10);
-  const [contributionAmount, setContributionAmount] = useState(10);
-  const [loading, setLoading] = useState(false);
+  const { loading, formState, handleFieldChange, createPool } = useCreatePool();
 
-  const resetForm = () => {
-    setName('');
-    setLotteryType('megasena');
-    setDrawDate('');
-    setNumTickets(1);
-    setMaxParticipants(10);
-    setContributionAmount(10);
-  };
-
-  const handleCreatePool = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!user) {
-      toast({
-        title: "Erro ao criar bolão",
-        description: "Você precisa estar logado para criar um bolão.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Converte a data de string para objeto Date
-      const formattedDate = new Date(drawDate).toISOString();
-
-      const { data, error } = await supabase
-        .from('pools')
-        .insert([
-          {
-            name,
-            lottery_type: lotteryType,
-            draw_date: formattedDate,
-            num_tickets: numTickets,
-            max_participants: maxParticipants,
-            contribution_amount: contributionAmount,
-            admin_id: user.id,
-          },
-        ])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast({
-        title: "Bolão criado com sucesso!",
-        description: `Seu bolão "${name}" foi criado.`,
-      });
-
-      // Inserir o admin como participante automático do bolão
-      await supabase.from('participants').insert([
-        {
-          user_id: user.id,
-          pool_id: data.id,
-          name: user.user_metadata?.name || 'Admin',
-          email: user.email,
-          status: 'confirmado'
-        }
-      ]);
-
-      resetForm();
-      setOpen(false);
-      
-      // Navegar para a página de detalhes do bolão
-      navigate(`/boloes/${data.id}`);
-    } catch (error: any) {
-      toast({
-        title: "Erro ao criar bolão",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+    const poolId = await createPool();
+    if (poolId) {
+      setOpen(false); // Fecha o modal apenas se o bolão for criado com sucesso
     }
   };
 
@@ -148,7 +66,7 @@ export default function CreatePoolForm({
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleCreatePool}>
+        <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Criar Novo Bolão</DialogTitle>
             <DialogDescription>
@@ -160,8 +78,8 @@ export default function CreatePoolForm({
               <Label htmlFor="name">Nome do Bolão</Label>
               <Input
                 id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={formState.name}
+                onChange={(e) => handleFieldChange('name', e.target.value)}
                 placeholder="Ex: Mega da Virada 2025"
                 required
               />
@@ -169,8 +87,8 @@ export default function CreatePoolForm({
             <div className="space-y-2">
               <Label htmlFor="lottery-type">Tipo de Loteria</Label>
               <Select
-                value={lotteryType}
-                onValueChange={(value: LotteryType) => setLotteryType(value)}
+                value={formState.lotteryType}
+                onValueChange={(value: LotteryType) => handleFieldChange('lotteryType', value)}
                 required
               >
                 <SelectTrigger>
@@ -190,46 +108,46 @@ export default function CreatePoolForm({
               <Input
                 id="draw-date"
                 type="date"
-                value={drawDate}
-                onChange={(e) => setDrawDate(e.target.value)}
+                value={formState.drawDate}
+                onChange={(e) => handleFieldChange('drawDate', e.target.value)}
                 required
                 min={new Date().toISOString().split('T')[0]}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="num-tickets">Número de Bilhetes</Label>
+                <Label htmlFor="num-tickets">Nº de Bilhetes</Label>
                 <Input
                   id="num-tickets"
                   type="number"
-                  value={numTickets}
-                  onChange={(e) => setNumTickets(Number(e.target.value))}
-                  min={1}
+                  value={formState.numTickets}
+                  onChange={(e) => handleFieldChange('numTickets', Number(e.target.value))}
                   required
+                  min={1}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="max-participants">Máximo de Participantes</Label>
+                <Label htmlFor="max-participants">Max. Participantes</Label>
                 <Input
                   id="max-participants"
                   type="number"
-                  value={maxParticipants}
-                  onChange={(e) => setMaxParticipants(Number(e.target.value))}
-                  min={1}
+                  value={formState.maxParticipants}
+                  onChange={(e) => handleFieldChange('maxParticipants', Number(e.target.value))}
                   required
+                  min={2}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="contribution">Valor da Contribuição (R$)</Label>
+              <Label htmlFor="contribution-amount">Valor da Cota (R$)</Label>
               <Input
-                id="contribution"
+                id="contribution-amount"
                 type="number"
-                value={contributionAmount}
-                onChange={(e) => setContributionAmount(Number(e.target.value))}
-                min={1}
-                step="0.01"
+                value={formState.contributionAmount}
+                onChange={(e) => handleFieldChange('contributionAmount', Number(e.target.value))}
                 required
+                min={1}
+                step={0.01}
               />
             </div>
           </div>

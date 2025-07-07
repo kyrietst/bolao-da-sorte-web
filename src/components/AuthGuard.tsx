@@ -1,12 +1,12 @@
 
 import { ReactNode, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { Loader2 } from 'lucide-react';
 
-type AuthGuardProps = {
+interface AuthGuardProps {
   children: ReactNode;
-};
+}
 
 export default function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading } = useAuth();

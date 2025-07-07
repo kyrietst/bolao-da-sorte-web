@@ -1,13 +1,9 @@
 
-import { Participant } from '@/types';
+import { usePoolDetail } from '@/features/pools/providers/PoolDetailProvider';
 import StatusBadge from '../ui/StatusBadge';
 
-type ParticipantListProps = {
-  participants: Participant[];
-  isAdmin?: boolean;
-};
-
-export default function ParticipantList({ participants, isAdmin = false }: ParticipantListProps) {
+export default function ParticipantList() {
+  const { participants, isAdmin } = usePoolDetail();
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">

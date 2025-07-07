@@ -2,9 +2,9 @@
 import { PaymentStatus } from '@/types';
 import { cn } from '@/lib/utils';
 
-type StatusBadgeProps = {
+interface StatusBadgeProps {
   status: PaymentStatus;
-};
+}
 
 const statusConfig: Record<PaymentStatus, { label: string; className: string }> = {
   confirmado: {

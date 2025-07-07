@@ -1,10 +1,10 @@
 
-import Sidebar from '@/components/sidebar/Sidebar';
+import { Sidebar } from '@/components/sidebar/Sidebar';
 import { ReactNode } from 'react';
 
-type MainLayoutProps = {
+interface MainLayoutProps {
   children: ReactNode;
-};
+}
 
 export default function MainLayout({ children }: MainLayoutProps) {
   return (

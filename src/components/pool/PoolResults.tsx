@@ -1,114 +1,16 @@
 
-import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { LotteryNumbers } from '@/components/lottery/LotteryNumbers';
-import { Pool, Ticket, LotteryType } from '@/types';
-import { fetchLatestLotteryResult, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
-import { useToast } from '@/components/ui/use-toast';
+import { usePoolDetail } from '@/features/pools/providers/PoolDetailProvider';
+import { usePoolResults } from '@/hooks/usePoolResults';
 import { Trophy, Target, Award } from 'lucide-react';
+import { LotteryType } from '@/types';
 
-type PoolResultsProps = {
-  pool: Pool;
-  tickets: Ticket[];
-};
-
-type TicketResult = {
-  ticket: Ticket;
-  hits: number;
-  matchedNumbers: number[];
-  prizeValue: number;
-};
-
-type ResultStats = {
-  maxHits: number;
-  prizeWinners: number;
-  totalPrize: number;
-  drawNumbers: number[];
-  drawNumber: string;
-};
-
-export default function PoolResults({ pool, tickets }: PoolResultsProps) {
-  const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<TicketResult[]>([]);
-  const [stats, setStats] = useState<ResultStats | null>(null);
-  const { toast } = useToast();
-
-  const checkResults = async () => {
-    if (tickets.length === 0) {
-      toast({
-        title: "Nenhum bilhete encontrado",
-        description: "Este bolão não possui bilhetes cadastrados para verificar.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Buscar o último resultado da loteria
-      const apiResponse = await fetchLatestLotteryResult(pool.lotteryType as LotteryType);
-      const lotteryResult = convertApiResponseToLotteryResult(apiResponse);
-      
-      // Verificar cada bilhete contra o resultado
-      const ticketResults: TicketResult[] = tickets.map(ticket => {
-        const matchedNumbers = ticket.numbers.filter(num => 
-          lotteryResult.numbers.includes(num)
-        );
-        const hits = matchedNumbers.length;
-        
-        // Calcular prêmio baseado nos acertos (simulado)
-        let prizeValue = 0;
-        if (pool.lotteryType === 'megasena') {
-          if (hits === 6) prizeValue = 50000000;
-          else if (hits === 5) prizeValue = 50000;
-          else if (hits === 4) prizeValue = 1000;
-        } else if (pool.lotteryType === 'lotofacil') {
-          if (hits === 15) prizeValue = 1500000;
-          else if (hits === 14) prizeValue = 1500;
-          else if (hits === 13) prizeValue = 25;
-          else if (hits === 12) prizeValue = 10;
-          else if (hits === 11) prizeValue = 5;
-        }
-
-        return {
-          ticket,
-          hits,
-          matchedNumbers,
-          prizeValue
-        };
-      });
-
-      // Calcular estatísticas
-      const maxHits = Math.max(...ticketResults.map(r => r.hits));
-      const prizeWinners = ticketResults.filter(r => r.prizeValue > 0).length;
-      const totalPrize = ticketResults.reduce((sum, r) => sum + r.prizeValue, 0);
-
-      setResults(ticketResults);
-      setStats({
-        maxHits,
-        prizeWinners,
-        totalPrize,
-        drawNumbers: lotteryResult.numbers,
-        drawNumber: lotteryResult.drawNumber
-      });
-
-      toast({
-        title: "Resultados verificados!",
-        description: `${ticketResults.length} bilhetes verificados contra o concurso ${lotteryResult.drawNumber}`,
-      });
-
-    } catch (error: any) {
-      toast({
-        title: "Erro ao verificar resultados",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+export default function PoolResults() {
+  const { pool, tickets } = usePoolDetail();
+  const { loading, stats, results, checkResults } = usePoolResults(pool, tickets);
 
   const formatCurrency = (value: number): string => {
     return new Intl.NumberFormat('pt-BR', {

@@ -1,12 +1,12 @@
 
 import { ReactNode } from 'react';
 
-type StatCardProps = {
+interface StatCardProps {
   title: string;
   value: string | number;
   description: string;
   icon: ReactNode;
-};
+}
 
 export default function StatCard({ title, value, description, icon }: StatCardProps) {
   return (

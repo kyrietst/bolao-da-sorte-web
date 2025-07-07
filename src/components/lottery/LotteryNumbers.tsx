@@ -2,11 +2,11 @@
 import { LotteryType } from '@/types';
 import { cn } from '@/lib/utils';
 
-type LotteryNumbersProps = {
+interface LotteryNumbersProps {
   type: LotteryType;
   numbers: number[];
   size?: 'sm' | 'md' | 'lg';
-};
+}
 
 export function LotteryNumbers({ type, numbers, size = 'md' }: LotteryNumbersProps) {
   const sizeClasses = {

@@ -2,10 +2,10 @@
 import { Ticket, LotteryType } from '@/types';
 import { LotteryNumbers } from './LotteryNumbers';
 
-type LotteryTicketProps = {
+interface LotteryTicketProps {
   ticket: Ticket;
   type: LotteryType;
-};
+}
 
 export default function LotteryTicket({ ticket, type }: LotteryTicketProps) {
   return (

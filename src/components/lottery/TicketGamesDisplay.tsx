@@ -1,22 +1,23 @@
 
-import { Ticket, LotteryType } from '@/types';
+import { Ticket } from '@/types';
+import { usePoolDetail } from '@/features/pools/providers/PoolDetailProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Star } from 'lucide-react';
 
-type TicketGamesDisplayProps = {
+interface TicketGamesDisplayProps {
   ticket: Ticket;
-  type: LotteryType;
   gamesPerTicket?: number;
   numbersPerGame?: number;
-};
+}
 
 export default function TicketGamesDisplay({ 
   ticket, 
-  type, 
   gamesPerTicket = 10, 
   numbersPerGame = 6 
 }: TicketGamesDisplayProps) {
+  const { pool } = usePoolDetail();
+  const type = pool?.lotteryType;
   // Dividir os números do bilhete em jogos
   const games = [];
   const totalNumbers = ticket.numbers.length;

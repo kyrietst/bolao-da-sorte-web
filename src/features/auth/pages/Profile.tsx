@@ -1,7 +1,7 @@
-
 import { useEffect, useState } from 'react';
 import MainLayout from '@/layout/MainLayout';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/features/auth/providers/AuthProvider';
+import { useProfile } from '@/features/auth/hooks/useProfile';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,12 +11,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
 export default function Profile() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const { profile, loading } = useProfile();
   const { toast } = useToast();
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
@@ -43,10 +43,11 @@ export default function Profile() {
         title: 'Perfil atualizado',
         description: 'Suas informações foram atualizadas com sucesso.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro inesperado.";
       toast({
         title: 'Erro ao atualizar perfil',
-        description: error.message,
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
