@@ -18,6 +18,8 @@ export const convertSupabasePoolToPool = (pool: SupabasePool): Pool => {
     adminId: pool.admin_id,
     status: pool.status,
     createdAt: pool.created_at,
+    hasRanking: pool.has_ranking || false,
+    rankingPeriod: pool.ranking_period || 'mensal',
   };
 };
 

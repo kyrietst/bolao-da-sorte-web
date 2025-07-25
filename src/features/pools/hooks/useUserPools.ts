@@ -38,7 +38,7 @@ export const useUserPools = (user: User | null) => {
 
       if (participantError) throw participantError;
 
-      let participantPools: any[] = [];
+      let participantPools: SupabasePool[] = [];
       if (participantEntries && participantEntries.length > 0) {
         const participantPoolIds = participantEntries.map(p => p.pool_id);
         
@@ -99,11 +99,79 @@ export const useUserPools = (user: User | null) => {
     fetchPools();
   }, [fetchPools]);
 
-  const pools = useMemo(() => {
+  const { organizedPools, participatingPools, allPools } = useMemo(() => {
     const formatted = typedPools.map(convertSupabasePoolToPool);
     formatted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    return formatted;
-  }, [typedPools]);
+    
+    const organized = formatted.filter(pool => pool.adminId === user?.id);
+    const participating = formatted.filter(pool => pool.adminId !== user?.id);
+    
+    return {
+      organizedPools: organized,
+      participatingPools: participating,
+      allPools: formatted
+    };
+  }, [typedPools, user?.id]);
 
-  return { pools, participantsCount, loading, error };
+  const deletePool = useCallback(async (poolId: string) => {
+    if (!user) {
+      toast({
+        title: "Erro",
+        description: "Usuário não autenticado",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    try {
+      // Verificar se o usuário é admin do bolão
+      const poolToDelete = typedPools.find(p => p.id === poolId);
+      if (!poolToDelete || poolToDelete.admin_id !== user.id) {
+        toast({
+          title: "Erro",
+          description: "Você não tem permissão para excluir este bolão",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      // Excluir o bolão (cascata irá excluir participantes, tickets, etc.)
+      const { error } = await supabase
+        .from('pools')
+        .delete()
+        .eq('id', poolId)
+        .eq('admin_id', user.id); // Segurança extra
+
+      if (error) throw error;
+
+      // Atualizar o estado local
+      setTypedPools(prev => prev.filter(p => p.id !== poolId));
+
+      toast({
+        title: "Sucesso",
+        description: "Bolão excluído com sucesso",
+      });
+
+      return true;
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "Erro inesperado ao excluir bolão";
+      toast({
+        title: "Erro ao excluir bolão",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return false;
+    }
+  }, [user, typedPools, toast]);
+
+  return { 
+    pools: allPools, // mantém compatibilidade 
+    organizedPools, 
+    participatingPools, 
+    participantsCount, 
+    loading, 
+    error,
+    deletePool,
+    refetch: fetchPools
+  };
 };

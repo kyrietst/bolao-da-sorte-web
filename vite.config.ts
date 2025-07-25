@@ -8,6 +8,15 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    proxy: {
+      '/api/lottery': {
+        target: 'https://api.guidi.dev.br/loteria',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/lottery/, ''),
+        secure: true,
+        followRedirects: true
+      }
+    }
   },
   plugins: [
     react(),

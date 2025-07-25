@@ -92,17 +92,15 @@ export const usePoolResults = (pool: Pool | null, tickets: Ticket[]) => {
         );
         const hits = matchedNumbers.length;
 
+        // Calcular prêmio baseado nos dados reais da API
         let prizeValue = 0;
-        if (pool.lotteryType === 'megasena') {
-          if (hits === 6) prizeValue = 50000000;
-          else if (hits === 5) prizeValue = 50000;
-          else if (hits === 4) prizeValue = 1000;
-        } else if (pool.lotteryType === 'lotofacil') {
-          if (hits === 15) prizeValue = 1500000;
-          else if (hits === 14) prizeValue = 1500;
-          else if (hits === 13) prizeValue = 25;
-          else if (hits === 12) prizeValue = 10;
-          else if (hits === 11) prizeValue = 5;
+        if (lotteryResult.prizes && lotteryResult.prizes.length > 0) {
+          const prizeInfo = lotteryResult.prizes.find(p => parseInt(p.hits) === hits);
+          if (prizeInfo && prizeInfo.prize) {
+            // Converter string para número (ex: "R$ 1.234,56" -> 1234.56)
+            const prizeStr = prizeInfo.prize.replace(/[^\d,]/g, '').replace(',', '.');
+            prizeValue = parseFloat(prizeStr) || 0;
+          }
         }
 
         return {

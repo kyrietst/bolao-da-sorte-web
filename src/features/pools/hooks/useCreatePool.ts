@@ -2,7 +2,7 @@ import { useReducer, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/features/auth/providers/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
-import { LotteryType, PoolId } from '@/types';
+import { LotteryType, PoolId, CompetitionPeriod } from '@/types';
 import { useToast } from '@/components/ui/use-toast';
 
 // State and Action types for the form reducer
@@ -13,6 +13,8 @@ interface FormState {
   numTickets: number;
   maxParticipants: number;
   contributionAmount: number;
+  hasRanking: boolean;
+  rankingPeriod: CompetitionPeriod;
 }
 
 type FormAction = 
@@ -26,6 +28,8 @@ const initialState: FormState = {
   numTickets: 1,
   maxParticipants: 10,
   contributionAmount: 10,
+  hasRanking: false,
+  rankingPeriod: 'mensal',
 };
 
 const formReducer = (state: FormState, action: FormAction): FormState => {
@@ -76,6 +80,8 @@ export const useCreatePool = () => {
             max_participants: formState.maxParticipants,
             contribution_amount: formState.contributionAmount,
             admin_id: user.id,
+            has_ranking: formState.hasRanking,
+            ranking_period: formState.rankingPeriod,
           },
         ])
         .select()
@@ -90,7 +96,10 @@ export const useCreatePool = () => {
           pool_id: data.id as PoolId,
           name: user.user_metadata?.name || 'Admin',
           email: user.email,
-          status: 'confirmado'
+          status: 'ativo',
+          shares_count: 1,
+          contribution_per_share: formState.contributionAmount,
+          join_method: 'manual'
         }
       ]);
 

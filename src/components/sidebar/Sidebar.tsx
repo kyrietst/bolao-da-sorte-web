@@ -134,6 +134,61 @@ export function Sidebar({ className }: any) {
           label="Pesquisar Resultados"
           active={currentPath === "/pesquisar-resultados"}
         />
+        <SidebarLink
+          to="/simulador"
+          icon={
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+            >
+              <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+              <path d="M9 22v-4h6v4" />
+              <path d="M8 6h.01" />
+              <path d="M16 6h.01" />
+              <path d="M12 6h.01" />
+              <path d="M12 10h.01" />
+              <path d="M12 14h.01" />
+              <path d="M16 10h.01" />
+              <path d="M16 14h.01" />
+              <path d="M8 10h.01" />
+              <path d="M8 14h.01" />
+            </svg>
+          }
+          label="Simulador"
+          active={currentPath === "/simulador"}
+        />
+        <SidebarLink
+          to="/gerador"
+          icon={
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5"
+            >
+              <path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z" />
+              <path d="m14 7 3 3" />
+              <path d="M5 6v4" />
+              <path d="M19 14v4" />
+              <path d="M10 2v2" />
+              <path d="M7 8H3" />
+              <path d="M21 16h-4" />
+              <path d="M11 3H9" />
+            </svg>
+          }
+          label="Gerador"
+          active={currentPath === "/gerador"}
+        />
       </div>
 
       <div className="border-t border-border p-4">

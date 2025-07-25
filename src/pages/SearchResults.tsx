@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import MainLayout from '@/layout/MainLayout';
 import { Input } from '@/components/ui/input';
@@ -7,68 +7,72 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import LotteryResultCard from '@/components/dashboard/LotteryResult';
 import { LotteryResult, LotteryType } from '@/types';
-import { fetchLotteryResult, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
+import { fetchLotteryResult, fetchLatestLotteryResult, convertApiResponseToLotteryResult } from '@/services/lotteryApi';
 import { toast } from '@/components/ui/sonner';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink } from '@/components/ui/pagination';
 
-// Mock data - será usado apenas quando a API não estiver disponível ou ocorrer um erro
+// Mock data - será usado apenas quando a API não estiver disponível ou ocorrer um erro  
 const mockResults: LotteryResult[] = [
   {
-    id: '1',
+    id: '2891',
     lotteryType: 'megasena' as LotteryType,
-    drawNumber: '2650',
-    drawDate: '2023-10-28',
-    numbers: [4, 18, 29, 37, 39, 53],
-    accumulated: true,
-  },
-  {
-    id: '2',
-    lotteryType: 'lotofacil' as LotteryType,
-    drawNumber: '3000',
-    drawDate: '2024-01-10',
-    numbers: [1, 2, 3, 4, 5, 10],
-    winners: 0,
-    accumulated: false,
-  },
-  {
-    id: '3',
-    lotteryType: 'quina' as LotteryType,
-    drawNumber: '6400',
-    drawDate: '2024-03-26',
-    numbers: [4, 24, 33, 50, 77],
-    accumulated: true,
-  },
-  {
-    id: '4',
-    lotteryType: 'lotomania' as LotteryType,
-    drawNumber: '2600',
-    drawDate: '2023-12-22',
-    numbers: [0, 7, 8, 9, 11, 17, 33, 41, 53],
-    accumulated: true,
-  },
-  {
-    id: '5',
-    lotteryType: 'timemania' as LotteryType,
-    drawNumber: '2100',
-    drawDate: '2024-04-06',
-    numbers: [14, 17, 43, 45, 60, 70],
-    accumulated: true,
-  },
-  {
-    id: '6',
-    lotteryType: 'duplasena' as LotteryType,
-    drawNumber: '2700',
-    drawDate: '2024-08-12',
-    numbers: [6, 9, 15, 22, 28, 44],
+    drawNumber: '2891',
+    drawDate: '2025-07-22',
+    numbers: [19, 54, 35, 34, 26, 24],
     accumulated: true,
   },
 ];
 
 export default function SearchResults() {
-  const [selectedLottery, setSelectedLottery] = useState<string>('');
+  const [selectedLottery, setSelectedLottery] = useState<string>('megasena'); // Pré-seleciona Mega-Sena
   const [drawNumber, setDrawNumber] = useState<string>('');
-  const [results, setResults] = useState<LotteryResult[]>(mockResults);
+  const [results, setResults] = useState<LotteryResult[]>([]); // Inicia vazio
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [hasInitialLoad, setHasInitialLoad] = useState<boolean>(false);
+
+  const handleSearchLatest = async () => {
+    if (!selectedLottery) {
+      toast.error('Por favor, selecione uma loteria');
+      return;
+    }
+    
+    setIsSearching(true);
+    
+    try {
+      console.log('Buscando último resultado da:', selectedLottery);
+      const apiResponse = await fetchLatestLotteryResult(selectedLottery as LotteryType);
+      const result = convertApiResponseToLotteryResult(apiResponse, selectedLottery as LotteryType);
+      
+      console.log('Último resultado encontrado:', result);
+      setResults([result]);
+      setDrawNumber(result.drawNumber); // Atualiza o campo de número
+      toast.success(`Último resultado encontrado: Concurso ${result.drawNumber}`);
+      
+    } catch (error: any) {
+      console.error('Erro ao buscar último resultado:', error);
+      toast.error('Erro ao buscar último resultado. Tente novamente.');
+      
+      // Em caso de erro, usar mock atualizado
+      setResults(mockResults);
+      setDrawNumber(mockResults[0].drawNumber);
+      toast.info('Exibindo último resultado conhecido.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Buscar último concurso automaticamente ao carregar a página
+  useEffect(() => {
+    const loadInitialData = async () => {
+      if (selectedLottery && !hasInitialLoad) {
+        console.log('🚀 Carregamento inicial: buscando último concurso');
+        await handleSearchLatest();
+        setHasInitialLoad(true);
+      }
+    };
+    
+    loadInitialData();
+  }, []); // Executa apenas uma vez no mount
   
   // Query para buscar o resultado da loteria
   const { refetch, isLoading, isError } = useQuery({
@@ -79,12 +83,12 @@ export default function SearchResults() {
       }
       console.log(`Buscando resultado para ${selectedLottery} concurso ${drawNumber}`);
       const apiResponse = await fetchLotteryResult(selectedLottery as LotteryType, drawNumber);
-      return convertApiResponseToLotteryResult(apiResponse);
+      return convertApiResponseToLotteryResult(apiResponse, selectedLottery as LotteryType);
     },
     enabled: false,
     retry: 1
   });
-  
+
   const handleSearch = async () => {
     if (!selectedLottery) {
       toast.error('Por favor, selecione uma loteria');
@@ -92,7 +96,8 @@ export default function SearchResults() {
     }
     
     if (!drawNumber) {
-      toast.error('Por favor, insira um número de concurso');
+      // Se não tiver número, busca o último
+      await handleSearchLatest();
       return;
     }
     
@@ -158,11 +163,13 @@ export default function SearchResults() {
     <MainLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pesquisar Resultados</h1>
-          <p className="text-muted-foreground">Busque resultados anteriores das loterias.</p>
+          <h1 className="text-2xl font-bold tracking-tight">Resultados da Mega-Sena</h1>
+          <p className="text-muted-foreground">
+            Veja o último resultado ou pesquise por um concurso específico da Mega-Sena.
+          </p>
         </div>
         
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto] items-end">
+        <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto_auto] items-end">
           <div>
             <label className="text-sm font-medium mb-1 block">Loteria</label>
             <Select
@@ -174,11 +181,6 @@ export default function SearchResults() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="megasena">Mega-Sena</SelectItem>
-                <SelectItem value="lotofacil">Lotofácil</SelectItem>
-                <SelectItem value="quina">Quina</SelectItem>
-                <SelectItem value="lotomania">Lotomania</SelectItem>
-                <SelectItem value="timemania">Timemania</SelectItem>
-                <SelectItem value="duplasena">Dupla Sena</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -187,7 +189,7 @@ export default function SearchResults() {
             <label className="text-sm font-medium mb-1 block">Concurso</label>
             <Input
               type="text"
-              placeholder="Número do concurso"
+              placeholder="Número do concurso (opcional)"
               value={drawNumber}
               onChange={(e) => setDrawNumber(e.target.value)}
               onKeyPress={(e) => {
@@ -197,6 +199,10 @@ export default function SearchResults() {
               }}
             />
           </div>
+          
+          <Button onClick={handleSearchLatest} disabled={isLoading || isSearching} variant="outline">
+            {isLoading || isSearching ? 'Buscando...' : 'Último Concurso'}
+          </Button>
           
           <Button onClick={handleSearch} disabled={isLoading || isSearching}>
             {isLoading || isSearching ? 'Buscando...' : 'Buscar'}
@@ -219,9 +225,14 @@ export default function SearchResults() {
         
         {!isLoading && !isSearching && results.length === 0 && (
           <div className="bg-card border border-border rounded-lg p-10 text-center">
-            <p className="text-muted-foreground">
-              Nenhum resultado encontrado com os critérios especificados.
+            <h3 className="text-lg font-semibold mb-2">Pesquise um Resultado</h3>
+            <p className="text-muted-foreground mb-4">
+              Use o botão "Último Concurso" para ver o resultado mais recente da Mega-Sena, 
+              ou digite um número específico de concurso e clique em "Buscar".
             </p>
+            <Button onClick={handleSearchLatest} variant="outline" disabled={!selectedLottery}>
+              Ver Último Concurso
+            </Button>
           </div>
         )}
         

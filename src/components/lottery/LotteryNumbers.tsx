@@ -9,6 +9,9 @@ interface LotteryNumbersProps {
 }
 
 export function LotteryNumbers({ type, numbers, size = 'md' }: LotteryNumbersProps) {
+  // Log para debug
+  console.log('🎯 LotteryNumbers recebeu:', { type, numbers, size });
+  
   const sizeClasses = {
     sm: 'h-8 w-8 text-xs',
     md: 'h-10 w-10 text-sm',
@@ -17,12 +20,17 @@ export function LotteryNumbers({ type, numbers, size = 'md' }: LotteryNumbersPro
 
   const lotteryColors = {
     megasena: 'bg-lottery-megasena',
-    lotofacil: 'bg-lottery-lotofacil',
-    quina: 'bg-lottery-quina',
-    lotomania: 'bg-lottery-lotomania',
-    timemania: 'bg-lottery-timemania',
-    duplasena: 'bg-lottery-duplasena',
   };
+  
+  // Validação dos números
+  if (!numbers || !Array.isArray(numbers) || numbers.length === 0) {
+    console.warn('⚠️ LotteryNumbers: números inválidos ou vazios', numbers);
+    return (
+      <div className="flex justify-center items-center p-4 text-gray-500">
+        <span className="text-sm">Números não disponíveis</span>
+      </div>
+    );
+  }
   
   return (
     <div className="flex flex-wrap justify-center gap-2">

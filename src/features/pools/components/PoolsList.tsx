@@ -8,11 +8,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 
 const lotteryNames: Record<string, string> = {
   megasena: 'Mega-Sena',
-  lotofacil: 'Lotofácil',
-  quina: 'Quina',
-  lotomania: 'Lotomania',
-  timemania: 'Timemania',
-  duplasena: 'Dupla Sena',
 };
 
 export default function PoolsList() {

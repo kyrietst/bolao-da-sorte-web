@@ -102,7 +102,7 @@ export type Database = {
         Row: {
           created_at: string | null
           draw_date: string
-          draw_number: string
+          draw_number: number
           id: string
           lottery_type: string
           response: Json
@@ -111,7 +111,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           draw_date: string
-          draw_number: string
+          draw_number: number
           id?: string
           lottery_type: string
           response: Json
@@ -120,7 +120,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           draw_date?: string
-          draw_number?: string
+          draw_number?: number
           id?: string
           lottery_type?: string
           response?: Json
@@ -137,6 +137,13 @@ export type Database = {
           pool_id: string | null
           status: string
           user_id: string | null
+          shares_count: number | null
+          total_contribution: number | null
+          contribution_per_share: number | null
+          join_method: string | null
+          invited_by: string | null
+          invitation_token: string | null
+          updated_at: string | null
         }
         Insert: {
           created_at?: string
@@ -146,6 +153,13 @@ export type Database = {
           pool_id?: string | null
           status?: string
           user_id?: string | null
+          shares_count?: number | null
+          total_contribution?: number | null
+          contribution_per_share?: number | null
+          join_method?: string | null
+          invited_by?: string | null
+          invitation_token?: string | null
+          updated_at?: string | null
         }
         Update: {
           created_at?: string
@@ -155,6 +169,13 @@ export type Database = {
           pool_id?: string | null
           status?: string
           user_id?: string | null
+          shares_count?: number | null
+          total_contribution?: number | null
+          contribution_per_share?: number | null
+          join_method?: string | null
+          invited_by?: string | null
+          invitation_token?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -224,6 +245,10 @@ export type Database = {
           name: string
           num_tickets: number
           status: string
+          status_history: Json | null
+          status_changed_at: string | null
+          status_changed_by: string | null
+          updated_at: string | null
         }
         Insert: {
           admin_id: string
@@ -236,6 +261,10 @@ export type Database = {
           name: string
           num_tickets?: number
           status?: string
+          status_history?: Json | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          updated_at?: string | null
         }
         Update: {
           admin_id?: string
@@ -248,6 +277,10 @@ export type Database = {
           name?: string
           num_tickets?: number
           status?: string
+          status_history?: Json | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -381,6 +414,166 @@ export type Database = {
             referencedRelation: "tickets"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      participant_draw_scores: {
+        Row: {
+          id: string
+          participant_id: string
+          competition_id: string | null
+          lottery_result_id: string | null
+          total_hits: number
+          hit_breakdown: Json | null
+          total_games_played: number
+          points_earned: number
+          prize_value: number
+          prize_tier: string | null
+          draw_date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          participant_id: string
+          competition_id?: string | null
+          lottery_result_id?: string | null
+          total_hits: number
+          hit_breakdown?: Json | null
+          total_games_played: number
+          points_earned: number
+          prize_value: number
+          prize_tier?: string | null
+          draw_date: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          participant_id?: string
+          competition_id?: string | null
+          lottery_result_id?: string | null
+          total_hits?: number
+          hit_breakdown?: Json | null
+          total_games_played?: number
+          points_earned?: number
+          prize_value?: number
+          prize_tier?: string | null
+          draw_date?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "participant_draw_scores_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      competitions: {
+        Row: {
+          id: string
+          pool_id: string
+          name: string
+          period: string
+          start_date: string
+          end_date: string
+          lottery_type: string
+          status: string
+          points_per_hit: number
+          bonus_points: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          pool_id: string
+          name: string
+          period: string
+          start_date: string
+          end_date: string
+          lottery_type: string
+          status?: string
+          points_per_hit: number
+          bonus_points?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          pool_id?: string
+          name?: string
+          period?: string
+          start_date?: string
+          end_date?: string
+          lottery_type?: string
+          status?: string
+          points_per_hit?: number
+          bonus_points?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitions_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "pools"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      competition_rankings: {
+        Row: {
+          id: string
+          participant_id: string
+          competition_id: string
+          total_points: number
+          total_hits: number
+          total_games_played: number
+          total_prize_value: number
+          current_rank: number
+          rank_change: number | null
+          average_hits_per_draw: number
+          last_updated: string
+        }
+        Insert: {
+          id?: string
+          participant_id: string
+          competition_id: string
+          total_points: number
+          total_hits: number
+          total_games_played: number
+          total_prize_value: number
+          current_rank: number
+          rank_change?: number | null
+          average_hits_per_draw: number
+          last_updated?: string
+        }
+        Update: {
+          id?: string
+          participant_id?: string
+          competition_id?: string
+          total_points?: number
+          total_hits?: number
+          total_games_played?: number
+          total_prize_value?: number
+          current_rank?: number
+          rank_change?: number | null
+          average_hits_per_draw?: number
+          last_updated?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_rankings_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_rankings_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "competitions"
+            referencedColumns: ["id"]
+          }
         ]
       }
       tickets: {

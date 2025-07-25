@@ -35,11 +35,6 @@ export default function TicketGamesDisplay({
 
   const lotteryColors = {
     megasena: 'bg-lottery-megasena',
-    lotofacil: 'bg-lottery-lotofacil',
-    quina: 'bg-lottery-quina',
-    lotomania: 'bg-lottery-lotomania',
-    timemania: 'bg-lottery-timemania',
-    duplasena: 'bg-lottery-duplasena',
   };
 
   return (

@@ -67,63 +67,67 @@ export const PoolDetailProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [state, dispatch] = useReducer(poolDetailReducer, initialState);
 
-  useEffect(() => {
+  const fetchPoolDetails = async () => {
     if (!id) return;
+    
+    dispatch({ type: 'FETCH_START' });
+    try {
+      // Fetch pool details
+      const { data: poolData, error: poolError } = await supabase
+        .from('pools')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-    const fetchPoolDetails = async () => {
-      dispatch({ type: 'FETCH_START' });
-      try {
-        // Fetch pool details
-        const { data: poolData, error: poolError } = await supabase
-          .from('pools')
-          .select('*')
-          .eq('id', id)
-          .single();
+      if (poolError) throw new Error('Bolão não encontrado.');
+      const convertedPool = convertSupabasePoolToPool(poolData as unknown as SupabasePool);
+      const isAdmin = user?.id === convertedPool.adminId;
 
-        if (poolError) throw new Error('Bolão não encontrado.');
-        const convertedPool = convertSupabasePoolToPool(poolData as unknown as SupabasePool);
-        const isAdmin = user?.id === convertedPool.adminId;
+      // Fetch participants
+      const { data: participantsData, error: participantsError } = await supabase
+        .from('participants')
+        .select('*')
+        .eq('pool_id', id);
+      if (participantsError) throw participantsError;
+      const convertedParticipants = ((participantsData || []) as unknown as SupabaseParticipant[]).map(p =>
+        convertSupabaseParticipantToParticipant(p)
+      );
 
-        // Fetch participants
-        const { data: participantsData, error: participantsError } = await supabase
-          .from('participants')
-          .select('*')
-          .eq('pool_id', id);
-        if (participantsError) throw participantsError;
-        const convertedParticipants = ((participantsData || []) as unknown as SupabaseParticipant[]).map(p =>
-          convertSupabaseParticipantToParticipant(p)
-        );
+      // Fetch tickets
+      const { data: ticketsData, error: ticketsError } = await supabase
+        .from('tickets')
+        .select('*')
+        .eq('pool_id', id);
+      if (ticketsError) throw ticketsError;
+      const convertedTickets = ((ticketsData || []) as unknown as SupabaseTicket[]).map(t =>
+        convertSupabaseTicketToTicket(t)
+      );
 
-        // Fetch tickets
-        const { data: ticketsData, error: ticketsError } = await supabase
-          .from('tickets')
-          .select('*')
-          .eq('pool_id', id);
-        if (ticketsError) throw ticketsError;
-        const convertedTickets = ((ticketsData || []) as unknown as SupabaseTicket[]).map(t =>
-          convertSupabaseTicketToTicket(t)
-        );
+      dispatch({ 
+        type: 'FETCH_SUCCESS', 
+        payload: { 
+          pool: convertedPool, 
+          participants: convertedParticipants, 
+          tickets: convertedTickets, 
+          isAdmin 
+        }
+      });
 
-        dispatch({ 
-          type: 'FETCH_SUCCESS', 
-          payload: { 
-            pool: convertedPool, 
-            participants: convertedParticipants, 
-            tickets: convertedTickets, 
-            isAdmin 
-          }
-        });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
+      dispatch({ type: 'FETCH_ERROR', payload: errorMessage });
+    }
+  };
 
-      } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : 'Ocorreu um erro desconhecido.';
-        dispatch({ type: 'FETCH_ERROR', payload: errorMessage });
-      }
-    };
-
+  useEffect(() => {
     fetchPoolDetails();
   }, [id, user]);
 
-  return <PoolDetailContext.Provider value={{ ...state, dispatch }}>{children}</PoolDetailContext.Provider>;
+  return (
+    <PoolDetailContext.Provider value={{ ...state, dispatch, refreshData: fetchPoolDetails }}>
+      {children}
+    </PoolDetailContext.Provider>
+  );
 };
 
 export const usePoolDetail = () => {
@@ -131,7 +135,7 @@ export const usePoolDetail = () => {
   if (context === undefined) {
     throw new Error('usePoolDetail must be used within a PoolDetailProvider');
   }
-  // We don't expose dispatch to the consuming components
-  const { dispatch, ...state } = context;
-  return state;
+  // We don't expose dispatch to the consuming components, but include refreshData
+  const { dispatch, ...stateAndRefresh } = context;
+  return stateAndRefresh;
 };

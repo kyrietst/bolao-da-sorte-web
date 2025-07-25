@@ -15,13 +15,10 @@ export interface User {
   role: 'admin' | 'participant';
 }
 
-export type LotteryType = 
-  'megasena' | 
-  'lotofacil' | 
-  'quina' | 
-  'lotomania' | 
-  'timemania' | 
-  'duplasena';
+export type LotteryType = 'megasena';
+
+export type CompetitionPeriod = 'mensal' | 'trimestral' | 'semestral' | 'anual';
+export type CompetitionStatus = 'ativa' | 'finalizada' | 'pausada' | 'agendada';
 
 export type PaymentStatus = 'confirmado' | 'pago' | 'pendente' | 'ativo';
 
@@ -36,6 +33,8 @@ export interface Pool {
   adminId: UserId;
   status: 'ativo' | 'finalizado';
   createdAt: string;
+  hasRanking?: boolean;
+  rankingPeriod?: CompetitionPeriod;
 }
 
 export interface Participant {
@@ -95,6 +94,8 @@ export interface SupabasePool {
   admin_id: UserId;
   status: 'ativo' | 'finalizado';
   created_at: string;
+  has_ranking?: boolean;
+  ranking_period?: CompetitionPeriod;
 }
 
 export interface SupabaseParticipant {
@@ -105,6 +106,13 @@ export interface SupabaseParticipant {
   email: string;
   status: PaymentStatus;
   created_at: string;
+  shares_count?: number;
+  total_contribution?: number;
+  contribution_per_share?: number;
+  join_method?: string;
+  invited_by?: UserId;
+  invitation_token?: string;
+  updated_at?: string;
 }
 
 export interface SupabaseTicket {
@@ -113,4 +121,95 @@ export interface SupabaseTicket {
   ticket_number: string;
   numbers: number[];
   created_at: string;
+}
+
+// Interfaces para o sistema de ranking
+export interface Competition {
+  id: string;
+  poolId: PoolId;
+  name: string;
+  description?: string;
+  period: CompetitionPeriod;
+  startDate: string;
+  endDate: string;
+  lotteryType: LotteryType;
+  status: CompetitionStatus;
+  pointsPerHit: number;
+  bonusPoints: Record<string, number>;
+  createdBy?: UserId;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LotteryDrawResult {
+  id: string;
+  lotteryType: LotteryType;
+  drawNumber: string;
+  drawDate: string;
+  numbers: number[];
+  accumulated: boolean;
+  totalWinners: number;
+  prizes: Array<{
+    hits: string;
+    winners: number;
+    prize: string;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ParticipantDrawScore {
+  id: string;
+  participantId: ParticipantId;
+  competitionId: string;
+  lotteryResultId: string;
+  totalHits: number;
+  hitBreakdown: Record<string, number>;
+  totalGamesPlayed: number;
+  pointsEarned: number;
+  prizeValue: number;
+  prizeTier?: string;
+  drawDate: string;
+  createdAt: string;
+}
+
+export interface CompetitionRanking {
+  id: string;
+  participantId: ParticipantId;
+  competitionId: string;
+  totalPoints: number;
+  totalHits: number;
+  totalGamesPlayed: number;
+  totalPrizeValue: number;
+  bestHitCount: number;
+  drawsParticipated: number;
+  averageHitsPerDraw: number;
+  consistencyScore: number;
+  currentRank: number;
+  previousRank: number;
+  rankChange: number;
+  lastUpdated: string;
+}
+
+// Interfaces para exibição de ranking
+export interface RankingEntry {
+  rank: number;
+  participant: Participant;
+  totalPoints: number;
+  totalHits: number;
+  averageHitsPerDraw: number;
+  totalPrizeValue: number;
+  bestHitCount: number;
+  drawsParticipated: number;
+  rankChange: number; // +/- mudança de posição
+  trend: 'up' | 'down' | 'stable';
+}
+
+export interface CompetitionStats {
+  totalParticipants: number;
+  totalDraws: number;
+  totalPrizeDistributed: number;
+  averageHitsPerDraw: number;
+  topPerformer: RankingEntry | null;
+  mostConsistent: RankingEntry | null;
 }

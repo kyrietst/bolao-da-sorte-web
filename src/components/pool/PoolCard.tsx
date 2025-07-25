@@ -10,11 +10,6 @@ export const PoolCard = ({ pool }: PoolCardProps) => {
   const getLotteryName = (type: string) => {
     const lotteryNames: Record<string, string> = {
       megasena: 'Mega-Sena',
-      lotofacil: 'Lotofácil',
-      quina: 'Quina',
-      lotomania: 'Lotomania',
-      timemania: 'Timemania',
-      duplasena: 'Dupla Sena',
     };
     return lotteryNames[type] || type;
   };

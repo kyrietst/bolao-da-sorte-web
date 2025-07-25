@@ -12,11 +12,6 @@ interface LotteryResultCardProps {
 const getLotteryName = (type: LotteryType): string => {
   const names: Record<LotteryType, string> = {
     megasena: 'Mega-Sena',
-    lotofacil: 'Lotofácil',
-    quina: 'Quina',
-    lotomania: 'Lotomania',
-    timemania: 'Timemania',
-    duplasena: 'Dupla Sena',
   };
   return names[type];
 };

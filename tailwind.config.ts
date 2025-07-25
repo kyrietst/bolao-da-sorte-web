@@ -65,11 +65,6 @@ export default {
 				},
 				lottery: {
 					megasena: '#00A651',
-					lotofacil: '#930089',
-					quina: '#260085',
-					lotomania: '#F78100',
-					timemania: '#00FF48',
-					duplasena: '#A61324',
 				},
 				status: {
 					confirmado: '#10B981',
